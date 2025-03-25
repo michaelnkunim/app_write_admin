@@ -1,0 +1,6 @@
+<svg width="1920" height="480" viewBox="0 0 1920 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1920" height="480" fill="#F3F4F6"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M0 480V240C160 180 320 150 480 150C640 150 800 180 960 240C1120 300 1280 330 1440 330C1600 330 1760 300 1920 240V480H0Z" fill="#E5E7EB"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M0 480V300C160 360 320 390 480 390C640 390 800 360 960 300C1120 240 1280 210 1440 210C1600 210 1760 240 1920 300V480H0Z" fill="#D1D5DB"/>
+  <path fill-rule="evenodd" clip-rule="evenodd" d="M0 480V360C160 420 320 450 480 450C640 450 800 420 960 360C1120 300 1280 270 1440 270C1600 270 1760 300 1920 360V480H0Z" fill="#9CA3AF"/>
+</svg> 
