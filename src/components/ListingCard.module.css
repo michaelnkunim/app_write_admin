@@ -1,0 +1,186 @@
+.cardLink {
+  display: block;
+  text-decoration: none;
+}
+
+.card {
+  background-color: var(--card-background);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--card-shadow);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.imageContainer {
+  position: relative;
+  aspect-ratio: 4/3;
+  overflow: hidden;
+}
+
+.image {
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.card:hover .image {
+  transform: scale(1.05);
+}
+
+.navigationContainer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.card:hover .navigationContainer {
+  opacity: 1;
+}
+
+.navigationButton {
+  padding: 0.25rem;
+  border-radius: 9999px;
+  background-color: var(--navigation-button-background);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.navigationButton:hover {
+  background-color: var(--navigation-button-hover);
+}
+
+.navigationIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--navigation-icon-color);
+}
+
+.paginationContainer {
+  position: absolute;
+  bottom: 1rem;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.paginationDot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background-color: var(--pagination-dot-color);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 0;
+}
+
+.paginationDotActive {
+  background-color: var(--pagination-dot-active);
+}
+
+.favoriteButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.75rem;
+  border-radius: 9999px;
+  background-color: var(--favorite-button-background);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--favorite-button-shadow);
+  z-index: 5;
+  min-width: 2.5rem;
+  min-height: 2.5rem;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.favoriteButton:hover {
+  background-color: var(--favorite-button-hover);
+}
+
+.favoriteIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--favorite-icon-color);
+}
+
+.favoriteIconActive {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: var(--favorite-icon-active);
+}
+
+.content {
+  padding: 1rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin: 0;
+}
+
+.price {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.location {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0.25rem 0;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  color: var(--rating-color);
+}
+
+.separator {
+  margin: 0 0.5rem;
+}
+
+.reviews {
+  color: var(--text-secondary);
+} 
