@@ -5,26 +5,24 @@ import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { 
-  LayoutDashboard, 
   Users, 
   FileText, 
   Settings, 
-  Home, 
   Image as ImageIcon,
   Menu as MenuIcon,
   AlertCircle,
   ArrowUpRight
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
+import { collection, query, getDocs, limit, orderBy, Timestamp } from 'firebase/firestore';
 
 interface BlogPost {
   id: string;
   title: string;
   content: string;
-  createdAt: any;
-  updatedAt: any;
-  [key: string]: any;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  [key: string]: string | Timestamp | boolean | number;
 }
 
 export default function AdminDashboard() {
@@ -41,7 +39,7 @@ export default function AdminDashboard() {
 
   // Redirect non-admin users
   useEffect(() => {
-    if (!user || !user.isAdmin) {
+    if (!user?.isAdmin) {
       router.push('/login');
       return;
     }
@@ -180,7 +178,7 @@ export default function AdminDashboard() {
           
           {recentPosts.length > 0 ? (
             <div className="space-y-4">
-              {recentPosts.map((post: any) => (
+              {recentPosts.map((post: BlogPost) => (
                 <div key={post.id} className="flex items-center justify-between py-2 border-b last:border-0">
                   <div>
                     <h3 className="font-medium">{post.title}</h3>

@@ -1,7 +1,6 @@
 import { Fragment } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { XMarkIcon, TagIcon, MapPinIcon, CurrencyDollarIcon, HomeIcon, SquaresPlusIcon, BeakerIcon } from '@heroicons/react/24/outline';
-import Image from 'next/image';
 import { Listing } from '@/types/listing';
 import ListingCard from './ListingCard';
 

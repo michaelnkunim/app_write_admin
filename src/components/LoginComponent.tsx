@@ -6,9 +6,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useAppSettings } from '@/context/AppSettingsContext';
 import { Facebook, Apple } from 'lucide-react';
 import { RecaptchaVerifier, signInWithPhoneNumber, createUserWithEmailAndPassword, signInWithEmailAndPassword, AuthError, signInAnonymously, sendEmailVerification } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth,db } from '@/lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 import { toast } from 'sonner';
 
 // Firebase error message dictionary
@@ -336,15 +335,15 @@ export default function LoginComponent({ onSuccess }: LoginComponentProps) {
   useEffect(() => {
     // This effect runs once on mount
     if (typeof window !== 'undefined') {
-      // @ts-expect-error - Adding a custom property to window for component communication
-      window.resetLoginForm = resetForm;
+      // Extend Window interface to include resetLoginForm
+      (window as Window & { resetLoginForm?: () => void }).resetLoginForm = resetForm;
     }
     
     return () => {
       // Cleanup on unmount
       if (typeof window !== 'undefined') {
-        // @ts-expect-error
-        delete window.resetLoginForm;
+        // Cast window to include resetLoginForm property
+        delete (window as Window & { resetLoginForm?: () => void }).resetLoginForm;
       }
     };
   }, []);

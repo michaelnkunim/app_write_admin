@@ -1,6 +1,7 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from './AuthContext';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -106,16 +107,17 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     checkOnboardingStatus();
   }, [user]);
 
+  // Memoize the context value
+  const contextValue = useMemo(() => ({ 
+    userType, 
+    providerType,
+    isOnboardingComplete, 
+    setUserType, 
+    checkOnboardingStatus 
+  }), [userType, providerType, isOnboardingComplete, setUserType, checkOnboardingStatus]);
+
   return (
-    <OnboardingContext.Provider 
-      value={{ 
-        userType, 
-        providerType,
-        isOnboardingComplete, 
-        setUserType, 
-        checkOnboardingStatus 
-      }}
-    >
+    <OnboardingContext.Provider value={contextValue}>
       {children}
     </OnboardingContext.Provider>
   );

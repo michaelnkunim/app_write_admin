@@ -16,7 +16,6 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { ChatMessage, ChatThread } from '@/types/chat';
-import { randomUUID } from 'crypto';
 
 export async function createChatThread(userId: string, otherUserId: string, participants: ChatThread['participants']): Promise<string> {
   try {

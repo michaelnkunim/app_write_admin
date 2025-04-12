@@ -1,9 +1,6 @@
 'use client';
 
 import { usePathname } from 'next/navigation';
-import Navbar from "@/components/Navbar";
-import Footer from "@/components/Footer";
-import MobileToolbar from "@/components/MobileToolbar";
 import HeaderAd from '@/components/HeaderAd';
 import { AlarmIndicator } from '@/components/AlarmIndicator';
 

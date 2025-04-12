@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useAuth } from './AuthContext';
 import { getTotalUnreadCount, subscribeToUserThreads } from '@/lib/chat';
 
@@ -18,7 +18,7 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
   const { user } = useAuth();
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
-  const updateUnreadCount = async () => {
+  const updateUnreadCount = useCallback(async () => {
     if (!user) return;
     try {
       const count = await getTotalUnreadCount(user.uid);
@@ -26,7 +26,7 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
     } catch (error) {
       console.error('Error updating unread count:', error);
     }
-  };
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
@@ -43,7 +43,7 @@ export function UnreadCountProvider({ children }: { children: React.ReactNode })
     });
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, updateUnreadCount]);
 
   return (
     <UnreadCountContext.Provider value={{ totalUnreadCount, updateUnreadCount }}>

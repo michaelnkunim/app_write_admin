@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
@@ -14,31 +14,24 @@ import {
   deleteDoc, 
   query, 
   orderBy,
-  where
 } from 'firebase/firestore';
 import { useAdminApp } from '@/context/AdminAppContext';
 import { useAlarm } from '@/context/AlarmContext';
 import { 
-  Calendar, 
   CheckCircle, 
   X, 
   Edit, 
   Trash, 
-  User, 
-  Clock, 
   Search, 
   Filter, 
   ChevronDown, 
-  ChevronUp, 
   ChevronRight, 
   ChevronLeft, 
-  MoveRight, 
-  Loader2, 
   RefreshCw,
   ClipboardList,
   Plus,
-  AlertTriangle
 } from 'lucide-react';
+import Image from 'next/image';
 
 // Add Comment interface
 interface Comment {
@@ -105,6 +98,61 @@ interface UserOption {
   photoURL?: string;
 }
 
+// Add this function before the component
+const renderUserAvatar = (photoURL: string | undefined, name: string | undefined, size: number = 24) => {
+  if (!photoURL) {
+    return (
+      <div className={`w-${size} h-${size} rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary`}>
+        {name?.charAt(0).toUpperCase()}
+      </div>
+    );
+  }
+  return (
+    <Image 
+      src={photoURL} 
+      alt={name || 'User avatar'} 
+      width={size} 
+      height={size} 
+      className="rounded-full" 
+    />
+  );
+};
+
+// Add this function before the component
+const getPriorityStyles = (priority: 'low' | 'medium' | 'high') => {
+  switch (priority) {
+    case 'high':
+      return 'bg-red-100 text-red-800';
+    case 'medium':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'low':
+      return 'bg-green-100 text-green-800';
+    default:
+      return '';
+  }
+};
+
+// Add this function before the component
+const getStatusStyles = (status: 'backlog' | 'open' | 'closed' | 'completed' | 'in-progress' | 'paused') => {
+  switch (status) {
+    case 'open':
+      return 'bg-blue-100 text-blue-800';
+    case 'completed':
+      return 'bg-green-100 text-green-800 opacity-70';
+    case 'in-progress':
+      return 'bg-emerald-100 text-emerald-800';
+    case 'paused':
+      return 'bg-amber-100 text-amber-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+// Add this function before the component
+const getBorderStyles = (status: 'backlog' | 'open' | 'closed' | 'completed' | 'in-progress' | 'paused') => {
+  return status === 'completed' ? 'border-gray-300 dark:border-gray-700' : 'border-primary/20';
+};
+
 export default function TaskTracker() {
   const { user } = useAuth();
   const router = useRouter();
@@ -163,10 +211,6 @@ export default function TaskTracker() {
   
   // Add state for comment inputs
   const [newTaskComment, setNewTaskComment] = useState('');
-  const [newSubtaskComment, setNewSubtaskComment] = useState('');
-  const [activeCommentTask, setActiveCommentTask] = useState<string | null>(null);
-  const [activeCommentSubtask, setActiveCommentSubtask] = useState<{taskId: string, subtaskId: string} | null>(null);
-  const [collapsedCommentSections, setCollapsedCommentSections] = useState<{[key: string]: boolean}>({});
   
   // Board view state
   const [boardView, setBoardView] = useState<boolean>(false);
@@ -208,7 +252,7 @@ export default function TaskTracker() {
   
   // Redirect non-admin users
   useEffect(() => {
-    if (!user || !user.isAdmin) {
+    if (!user?.isAdmin) {
       router.push('/login');
     }
   }, [user, router]);
@@ -223,27 +267,172 @@ export default function TaskTracker() {
     checkDueTasks 
   } = useAlarm();
   
-  // Helper function to toggle comment section collapse state
-  const toggleCommentSectionCollapse = (sectionId: string) => {
-    setCollapsedCommentSections(prev => ({
-      ...prev,
-      [sectionId]: !prev[sectionId]
-    }));
-  };
+  // Define fetch and filter functions with useCallback before they're used in useEffect
   
-  // Initial data load
-  useEffect(() => {
-    if (user?.isAdmin) {
-      fetchTasks();
-      fetchUsers();
-      fetchSprints();
+  // Update calendar tasks
+  const updateCalendarTasks = useCallback((taskList: Task[]) => {
+    const calendar: { [key: string]: Task[] } = {};
+    
+    taskList.forEach(task => {
+      const dateKey = task.dueDate.split('T')[0];
+      if (!calendar[dateKey]) {
+        calendar[dateKey] = [];
+      }
+      calendar[dateKey].push(task);
+    });
+    
+    setCalendarTasks(calendar);
+  }, []);
+
+  // Load tasks from Firestore
+  const fetchTasks = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
     }
-  }, [user]);
+    try {
+      const taskRef = collection(db, 'tasks');
+      const q = query(taskRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const taskData: Task[] = [];
+      for (const docSnapshot of querySnapshot.docs) {
+        const task = docSnapshot.data() as Omit<Task, 'id'>;
+        
+        // Fetch assigned user's name if there's an assignedTo
+        let assignedToName = '';
+        let assignedToPhotoURL = '';
+        if (task.assignedTo) {
+          const userDocRef = doc(db, 'users', task.assignedTo);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            assignedToName = userData.displayName || userData.email || '';
+            assignedToPhotoURL = userData.photoURL || '';
+          }
+        }
+        
+        // Fetch app name if there's an appId
+        let appName = '';
+        if (task.appId) {
+          const appDocRef = doc(db, 'apps', task.appId);
+          const appDocSnap = await getDoc(appDocRef);
+          if (appDocSnap.exists()) {
+            const appData = appDocSnap.data();
+            appName = appData.name || '';
+          }
+        }
+        
+        taskData.push({
+          ...task,
+          id: docSnapshot.id,
+          assignedToName,
+          assignedToPhotoURL,
+          appName
+        } as Task);
+      }
+      
+      setTasks(taskData);
+      setFilteredTasks(taskData);
+      updateCalendarTasks(taskData);
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }, [updateCalendarTasks]);
   
-  // Apply filters when filter state changes
-  useEffect(() => {
-    applyFilters();
-  }, [searchTerm, statusFilter, priorityFilter, tasks]);
+  // Load sprints from Firestore
+  const fetchSprints = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoading(true);
+    }
+    try {
+      const sprintRef = collection(db, 'sprints');
+      const q = query(sprintRef, orderBy('createdAt', 'desc'));
+      const querySnapshot = await getDocs(q);
+      
+      const sprintData: Sprint[] = [];
+      for (const docSnapshot of querySnapshot.docs) {
+        const sprint = docSnapshot.data() as Omit<Sprint, 'id'>;
+        
+        sprintData.push({
+          ...sprint,
+          id: docSnapshot.id
+        } as Sprint);
+      }
+      
+      setSprints(sprintData);
+      
+      // Find the active sprint
+      const active = sprintData.find(sprint => sprint.status === 'active');
+      if (active) {
+        setActiveSprint(active.id);
+      }
+    } catch (error) {
+      console.error('Error fetching sprints:', error);
+    } finally {
+      if (showLoading) {
+        setLoading(false);
+      }
+    }
+  }, []);
+  
+  // Fetch users for dropdown
+  const fetchUsers = useCallback(async () => {
+    try {
+      const usersRef = collection(db, 'users');
+      const querySnapshot = await getDocs(usersRef);
+      
+      const users = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        displayName: doc.data().displayName || doc.data().email || 'Unknown',
+        email: doc.data().email || '',
+        photoURL: doc.data().photoURL || ''
+      }));
+      
+      setUserOptions(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+    }
+  }, []);
+  
+  // Apply filters
+  const applyFilters = useCallback(() => {
+    let filtered = [...tasks];
+    
+    // Apply search term
+    if (searchTerm) {
+      filtered = filtered.filter(task => 
+        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.assignedToName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        task.appName?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+    
+    // Apply status filter
+    if (statusFilter !== 'all') {
+      filtered = filtered.filter(task => task.status === statusFilter);
+    }
+    
+    // Apply priority filter
+    if (priorityFilter !== 'all') {
+      filtered = filtered.filter(task => task.priority === priorityFilter);
+    }
+    
+    // Sort tasks to place completed tasks at the bottom
+    filtered = filtered.sort((a, b) => {
+      if (a.status === 'completed' && b.status !== 'completed') return 1;
+      if (a.status !== 'completed' && b.status === 'completed') return -1;
+      // For tasks with same completion status, maintain original order (most recent first)
+      return 0;
+    });
+    
+    setFilteredTasks(filtered);
+    updateCalendarTasks(filtered);
+  }, [searchTerm, statusFilter, priorityFilter, tasks, updateCalendarTasks]);
   
   // Calculate pagination
   const indexOfLastTask = currentPage * tasksPerPage;
@@ -355,185 +544,6 @@ export default function TaskTracker() {
     } catch (error) {
       console.error('Error updating subtask due date:', error);
     }
-  };
-  
-  // Load tasks from Firestore
-  const fetchTasks = async (showLoading = true) => {
-    if (showLoading) {
-      setLoading(true);
-    }
-    try {
-      const taskRef = collection(db, 'tasks');
-      const q = query(taskRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const taskData: Task[] = [];
-      for (const docSnapshot of querySnapshot.docs) {
-        const task = docSnapshot.data() as Omit<Task, 'id'>;
-        
-        // Fetch assigned user's name if there's an assignedTo
-        let assignedToName = '';
-        let assignedToPhotoURL = '';
-        if (task.assignedTo) {
-          const userDocRef = doc(db, 'users', task.assignedTo);
-          const userDocSnap = await getDoc(userDocRef);
-          if (userDocSnap.exists()) {
-            const userData = userDocSnap.data();
-            assignedToName = userData.displayName || userData.email || '';
-            assignedToPhotoURL = userData.photoURL || '';
-          }
-        }
-        
-        // Fetch app name if there's an appId
-        let appName = '';
-        if (task.appId) {
-          const appDocRef = doc(db, 'apps', task.appId);
-          const appDocSnap = await getDoc(appDocRef);
-          if (appDocSnap.exists()) {
-            const appData = appDocSnap.data();
-            appName = appData.name || '';
-          }
-        }
-        
-        taskData.push({
-          ...task,
-          id: docSnapshot.id,
-          assignedToName,
-          assignedToPhotoURL,
-          appName
-        } as Task);
-      }
-      
-      setTasks(taskData);
-      setFilteredTasks(taskData);
-      updateCalendarTasks(taskData);
-    } catch (error) {
-      console.error('Error fetching tasks:', error);
-    } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
-    }
-  };
-  
-  // Load sprints from Firestore
-  const fetchSprints = async (showLoading = true) => {
-    if (showLoading) {
-      setLoading(true);
-    }
-    try {
-      const sprintRef = collection(db, 'sprints');
-      const q = query(sprintRef, orderBy('createdAt', 'desc'));
-      const querySnapshot = await getDocs(q);
-      
-      const sprintData: Sprint[] = [];
-      for (const docSnapshot of querySnapshot.docs) {
-        const sprint = docSnapshot.data() as Omit<Sprint, 'id'>;
-        
-        sprintData.push({
-          ...sprint,
-          id: docSnapshot.id
-        } as Sprint);
-      }
-      
-      setSprints(sprintData);
-      
-      // Find the active sprint
-      const active = sprintData.find(sprint => sprint.status === 'active');
-      if (active) {
-        setActiveSprint(active.id);
-      }
-    } catch (error) {
-      console.error('Error fetching sprints:', error);
-    } finally {
-      if (showLoading) {
-        setLoading(false);
-      }
-    }
-  };
-  
-  // Fetch users for dropdown
-  const fetchUsers = async () => {
-    try {
-      const usersRef = collection(db, 'users');
-      const querySnapshot = await getDocs(usersRef);
-      
-      const users = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        displayName: doc.data().displayName || doc.data().email || 'Unknown',
-        email: doc.data().email || '',
-        photoURL: doc.data().photoURL || ''
-      }));
-      
-      setUserOptions(users);
-    } catch (error) {
-      console.error('Error fetching users:', error);
-    }
-  };
-  
-  // Apply filters
-  const applyFilters = () => {
-    let filtered = [...tasks];
-    
-    // Apply search term
-    if (searchTerm) {
-      filtered = filtered.filter(task => 
-        task.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.assignedToName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        task.appName?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    
-    // Apply status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(task => task.status === statusFilter);
-    }
-    
-    // Apply priority filter
-    if (priorityFilter !== 'all') {
-      filtered = filtered.filter(task => task.priority === priorityFilter);
-    }
-    
-    // Sort tasks to place completed tasks at the bottom
-    filtered = filtered.sort((a, b) => {
-      if (a.status === 'completed' && b.status !== 'completed') return 1;
-      if (a.status !== 'completed' && b.status === 'completed') return -1;
-      // For tasks with same completion status, maintain original order (most recent first)
-      return 0;
-    });
-    
-    setFilteredTasks(filtered);
-    updateCalendarTasks(filtered);
-  };
-  
-  // Update calendar tasks
-  const updateCalendarTasks = (taskList: Task[]) => {
-    const calendar: { [key: string]: Task[] } = {};
-    
-    taskList.forEach(task => {
-      const dateKey = task.dueDate.split('T')[0];
-      if (!calendar[dateKey]) {
-        calendar[dateKey] = [];
-      }
-      calendar[dateKey].push(task);
-    });
-    
-    setCalendarTasks(calendar);
-  };
-  
-  // Format due date and time for display
-  const formatDueDateTime = (dateTimeString: string) => {
-    const date = new Date(dateTimeString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
   };
   
   // Handle task creation and updates
@@ -884,77 +894,6 @@ export default function TaskTracker() {
     }
   };
   
-  // Function to add a comment to a subtask
-  const handleAddSubtaskComment = async (taskId: string, subtaskId: string) => {
-    if (!newSubtaskComment.trim() || !user) return;
-    
-    try {
-      // Find the task and subtask
-      const taskToUpdate = tasks.find(task => task.id === taskId);
-      if (!taskToUpdate || !taskToUpdate.subtasks) return;
-      
-      const subtaskIndex = taskToUpdate.subtasks.findIndex(subtask => subtask.id === subtaskId);
-      if (subtaskIndex === -1) return;
-      
-      // Create new comment
-      const newComment: Comment = {
-        id: Date.now().toString(),
-        text: newSubtaskComment.trim(),
-        createdAt: new Date().toISOString(),
-        createdBy: user.uid,
-        createdByName: user.displayName || user.email || 'Unknown',
-        createdByPhotoURL: user.photoURL || undefined
-      };
-      
-      // Create updated subtasks array
-      const updatedSubtasks = [...taskToUpdate.subtasks];
-      
-      // Update the specific subtask with the new comment
-      const targetSubtask = updatedSubtasks[subtaskIndex];
-      const updatedComments = targetSubtask.comments ? [...targetSubtask.comments, newComment] : [newComment];
-      updatedSubtasks[subtaskIndex] = {
-        ...targetSubtask,
-        comments: updatedComments
-      };
-      
-      // Update in Firestore
-      await updateDoc(doc(db, 'tasks', taskId), {
-        subtasks: updatedSubtasks,
-        updatedAt: new Date().toISOString()
-      });
-      
-      // Update local state
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-            : task
-        )
-      );
-      
-      // Update filtered tasks
-      setFilteredTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-            : task
-        )
-      );
-      
-      // Reset the input
-      setNewSubtaskComment('');
-      
-      // Update calendar tasks
-      updateCalendarTasks(tasks.map(task =>
-        task.id === taskId
-          ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-          : task
-      ));
-    } catch (error) {
-      console.error('Error adding subtask comment:', error);
-    }
-  };
-  
   // Function to handle liking a task comment
   const handleLikeComment = async (taskId: string, commentId: string) => {
     if (!user) return;
@@ -1079,164 +1018,164 @@ export default function TaskTracker() {
   };
 
   // Function to handle liking a subtask comment
-  const handleLikeSubtaskComment = async (taskId: string, subtaskId: string, commentId: string) => {
-    if (!user) return;
+  // const _handleLikeSubtaskComment = async (taskId: string, subtaskId: string, commentId: string) => {
     
-    try {
-      // Find the task and subtask
-      const taskToUpdate = tasks.find(task => task.id === taskId);
-      if (!taskToUpdate || !taskToUpdate.subtasks) return;
+  //   if (!user) return;
+    
+  //   try {
+  //     // Find the task and subtask
+  //     const taskToUpdate = tasks.find(task => task.id === taskId);
+  //     if (!taskToUpdate || !taskToUpdate.subtasks) return;
       
-      const subtaskIndex = taskToUpdate.subtasks.findIndex(subtask => subtask.id === subtaskId);
-      if (subtaskIndex === -1) return;
+  //     const subtaskIndex = taskToUpdate.subtasks.findIndex(subtask => subtask.id === subtaskId);
+  //     if (subtaskIndex === -1) return;
       
-      const subtask = taskToUpdate.subtasks[subtaskIndex];
-      if (!subtask.comments) return;
+  //     const subtask = taskToUpdate.subtasks[subtaskIndex];
+  //     if (!subtask.comments) return;
       
-      const commentIndex = subtask.comments.findIndex(comment => comment.id === commentId);
-      if (commentIndex === -1) return;
+  //     const commentIndex = subtask.comments.findIndex(comment => comment.id === commentId);
+  //     if (commentIndex === -1) return;
       
-      // Create updated subtasks array
-      const updatedSubtasks = [...taskToUpdate.subtasks];
+  //     // Create updated subtasks array
+  //     const updatedSubtasks = [...taskToUpdate.subtasks];
       
-      // Get the target comment
-      const targetComment = subtask.comments[commentIndex];
+  //     // Get the target comment
+  //     const targetComment = subtask.comments[commentIndex];
       
-      // Toggle like status
-      let updatedLikes = targetComment.likes || [];
-      if (updatedLikes.includes(user.uid)) {
-        // Unlike if already liked
-        updatedLikes = updatedLikes.filter(id => id !== user.uid);
-      } else {
-        // Like if not already liked
-        updatedLikes = [...updatedLikes, user.uid];
-      }
+  //     // Toggle like status
+  //     let updatedLikes = targetComment.likes || [];
+  //     if (updatedLikes.includes(user.uid)) {
+  //       // Unlike if already liked
+  //       updatedLikes = updatedLikes.filter(id => id !== user.uid);
+  //     } else {
+  //       // Like if not already liked
+  //       updatedLikes = [...updatedLikes, user.uid];
+  //     }
       
-      // Update the comment with new likes array
-      const updatedComments = [...subtask.comments];
-      updatedComments[commentIndex] = {
-        ...targetComment,
-        likes: updatedLikes
-      };
+  //     // Update the comment with new likes array
+  //     const updatedComments = [...subtask.comments];
+  //     updatedComments[commentIndex] = {
+  //       ...targetComment,
+  //       likes: updatedLikes
+  //     };
       
-      // Update the subtask with the modified comments
-      updatedSubtasks[subtaskIndex] = {
-        ...subtask,
-        comments: updatedComments
-      };
+  //     // Update the subtask with the modified comments
+  //     updatedSubtasks[subtaskIndex] = {
+  //       ...subtask,
+  //       comments: updatedComments
+  //     };
       
-      // Update in Firestore
-      await updateDoc(doc(db, 'tasks', taskId), {
-        subtasks: updatedSubtasks,
-        updatedAt: new Date().toISOString()
-      });
+  //     // Update in Firestore
+  //     await updateDoc(doc(db, 'tasks', taskId), {
+  //       subtasks: updatedSubtasks,
+  //       updatedAt: new Date().toISOString()
+  //     });
       
-      // Update local state
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-            : task
-      ));
+  //     // Update local state
+  //     setTasks(prevTasks =>
+  //       prevTasks.map(task =>
+  //         task.id === taskId
+  //           ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
+  //           : task
+  //   ));
       
-      // Update filtered tasks
-      setFilteredTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-            : task
-      ));
+  //     // Update filtered tasks
+  //     setFilteredTasks(prevTasks =>
+  //       prevTasks.map(task =>
+  //         task.id === taskId
+  //           ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
+  //           : task
+  //   ));
       
-      // Update calendar tasks
-      updateCalendarTasks(tasks.map(task =>
-        task.id === taskId
-          ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-          : task
-      ));
-    } catch (error) {
-      console.error('Error liking subtask comment:', error);
-    }
-  };
+  //     // Update calendar tasks
+  //     updateCalendarTasks(tasks.map(task =>
+  //       task.id === taskId
+  //         ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
+  //         : task
+  //   ));
+  //   } catch (error) {
+  //     console.error('Error liking subtask comment:', error);
+  //   }
+  // };
 
-  // Function to handle deleting a subtask comment
-  const handleDeleteSubtaskComment = async (taskId: string, subtaskId: string, commentId: string) => {
-    if (!user) return;
+  // // Function to handle deleting a subtask comment
+  // const _handleDeleteSubtaskComment = async (taskId: string, subtaskId: string, commentId: string) => {
+  //   if (!user) return;
     
-    try {
-      // Find the task and subtask
-      const taskToUpdate = tasks.find(task => task.id === taskId);
-      if (!taskToUpdate || !taskToUpdate.subtasks) return;
+  //   try {
+  //     // Find the task and subtask
+  //     const taskToUpdate = tasks.find(task => task.id === taskId);
+  //     if (!taskToUpdate || !taskToUpdate.subtasks) return;
       
-      const subtaskIndex = taskToUpdate.subtasks.findIndex(subtask => subtask.id === subtaskId);
-      if (subtaskIndex === -1) return;
+  //     const subtaskIndex = taskToUpdate.subtasks.findIndex(subtask => subtask.id === subtaskId);
+  //     if (subtaskIndex === -1) return;
       
-      const subtask = taskToUpdate.subtasks[subtaskIndex];
-      if (!subtask.comments) return;
+  //     const subtask = taskToUpdate.subtasks[subtaskIndex];
+  //     if (!subtask.comments) return;
       
-      // Find the comment to check ownership
-      const commentToDelete = subtask.comments.find(comment => comment.id === commentId);
-      if (!commentToDelete) return;
+  //     // Find the comment to check ownership
+  //     const commentToDelete = subtask.comments.find(comment => comment.id === commentId);
+  //     if (!commentToDelete) return;
       
-      // Only allow deletion by comment owner or admin
-      if (commentToDelete.createdBy !== user.uid && !user.isAdmin) {
-        console.error('Permission denied: Only the comment owner or admins can delete this comment');
-        return;
-      }
+  //     // Only allow deletion by comment owner or admin
+  //     if (commentToDelete.createdBy !== user.uid && !user.isAdmin) {
+  //       console.error('Permission denied: Only the comment owner or admins can delete this comment');
+  //       return;
+  //     }
       
-      // Filter out the comment to delete
-      const updatedComments = subtask.comments.filter(comment => comment.id !== commentId);
+  //     // Filter out the comment to delete
+  //     const updatedComments = subtask.comments.filter(comment => comment.id !== commentId);
       
-      // Create updated subtasks array
-      const updatedSubtasks = [...taskToUpdate.subtasks];
+  //     // Create updated subtasks array
+  //     const updatedSubtasks = [...taskToUpdate.subtasks];
       
-      // Update the subtask with the modified comments
-      updatedSubtasks[subtaskIndex] = {
-        ...subtask,
-        comments: updatedComments
-      };
+  //     // Update the subtask with the modified comments
+  //     updatedSubtasks[subtaskIndex] = {
+  //       ...subtask,
+  //       comments: updatedComments
+  //     };
       
-      // Update in Firestore
-      await updateDoc(doc(db, 'tasks', taskId), {
-        subtasks: updatedSubtasks,
-        updatedAt: new Date().toISOString()
-      });
+  //     // Update in Firestore
+  //     await updateDoc(doc(db, 'tasks', taskId), {
+  //       subtasks: updatedSubtasks,
+  //       updatedAt: new Date().toISOString()
+  //     });
       
-      // Update local state
-      setTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-            : task
-      ));
+  //     // Update local state
+  //     setTasks(prevTasks =>
+  //       prevTasks.map(task =>
+  //         task.id === taskId
+  //           ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
+  //           : task
+  //   ));
       
-      // Update filtered tasks
-      setFilteredTasks(prevTasks =>
-        prevTasks.map(task =>
-          task.id === taskId
-            ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-            : task
-      ));
+  //     // Update filtered tasks
+  //     setFilteredTasks(prevTasks =>
+  //       prevTasks.map(task =>
+  //         task.id === taskId
+  //           ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
+  //           : task
+  //   ));
       
-      // Update calendar tasks
-      updateCalendarTasks(tasks.map(task =>
-        task.id === taskId
-          ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
-          : task
-      ));
-    } catch (error) {
-      console.error('Error deleting subtask comment:', error);
-    }
-  };
+  //     // Update calendar tasks
+  //     updateCalendarTasks(tasks.map(task =>
+  //       task.id === taskId
+  //         ? { ...task, subtasks: updatedSubtasks, updatedAt: new Date().toISOString() }
+  //         : task
+  //   ));
+  //   } catch (error) {
+  //     console.error('Error deleting subtask comment:', error);
+  //   }
+  // };
 
   // Add a new state to track visible datetime editors for subtasks
   const [visibleDatetimeEditors, setVisibleDatetimeEditors] = useState<{[key: string]: boolean}>({});
 
   // Function to toggle the visibility of a subtask's datetime editor
   const toggleSubtaskDatetimeEditor = (taskId: string, subtaskId: string) => {
-    const key = `${taskId}_${subtaskId}`;
-    setVisibleDatetimeEditors(prev => ({
+    setVisibleDatetimeEditors((prev: {[key: string]: boolean}) => ({
       ...prev,
-      [key]: !prev[key]
+      [`${taskId}-${subtaskId}`]: !prev[`${taskId}-${subtaskId}`]
     }));
   };
   
@@ -1443,18 +1382,61 @@ export default function TaskTracker() {
     return filteredByStatus;
   };
   
-  // Set active task for adding subtasks and reset time to 2 hours from now
-  const setActiveTaskForSubtaskWithReset = (taskId: string | null) => {
-    // Reset subtask time to 2 hours from now and date to today
-    if (taskId !== null) {
-      const date = new Date();
-      date.setHours(date.getHours() + 2);
-      setNewSubtaskTime(date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
-      setNewSubtaskDate(new Date().toISOString().split('T')[0]);
+  // Set active task for adding subtasks and reset time to 2 hours from now (currently unused)
+  // const _setActiveTaskForSubtaskWithReset = (taskId: string | null) => {
+  //   setActiveTaskForSubtask(taskId);
+  //   if (taskId === null) {
+  //     setNewSubtaskText('');
+  //     setNewSubtaskTime(() => {
+  //       const now = new Date();
+  //       return `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  //     });
+  //     setNewSubtaskDate(() => {
+  //       const now = new Date();
+  //       return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  //     });
+  //   }
+  // };
+  
+  const [activeCommentTask, setActiveCommentTask] = useState<string | null>(null);
+  const [collapsedCommentSections, setCollapsedCommentSections] = useState<Record<string, boolean>>({});
+  //const [_activeCommentSubtask, _setActiveCommentSubtask] = useState<{taskId: string, subtaskId: string} | null>(null);
+  
+  // Helper function to toggle comment section collapse state
+  const toggleCommentSectionCollapse = useCallback((sectionId: string) => {
+    setCollapsedCommentSections((prev: Record<string, boolean>) => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  }, []);
+  
+  // Format due date and time for display
+  const formatDueDateTime = useCallback((dateTimeString: string) => {
+    const date = new Date(dateTimeString);
+    return date.toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+  }, []);
+  
+  // Initial data load
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchTasks();
+      fetchUsers();
+      fetchSprints();
     }
-    
-    setActiveTaskForSubtask(taskId);
-  };
+  }, [user, fetchTasks, fetchUsers, fetchSprints]);
+  
+  // Apply filters when filter state changes
+  useEffect(() => {
+    applyFilters();
+  }, [applyFilters]);
   
   return (
     <div className=" mx-1 px-2 py-8">
@@ -1842,9 +1824,7 @@ export default function TaskTracker() {
                                 key={task.id}
                                 onClick={() => handleEditTask(task)}
                                 className={`text-xs p-1 rounded cursor-pointer truncate ${
-                                  task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                                  task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-green-100 text-green-800'
+                                  getPriorityStyles(task.priority)
                                 } ${
                                   task.status === 'completed' ? 'line-through opacity-70' :
                                   task.status === 'closed' ? 'opacity-70' : ''
@@ -2017,11 +1997,7 @@ export default function TaskTracker() {
                         >
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-sm truncate mr-2">{task.title}</h4>
-                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${getPriorityStyles(task.priority)}`}>
                               {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                             </div>
                           </div>
@@ -2029,13 +2005,7 @@ export default function TaskTracker() {
                             <span className="whitespace-nowrap">{new Date(task.dueDate).toLocaleDateString()}</span>
                             {task.assignedToName && (
                               <span className="flex items-center">
-                                {task.assignedToPhotoURL ? (
-                                  <img src={task.assignedToPhotoURL} alt={task.assignedToName} className="w-6 h-6 rounded-full" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary">
-                                    {task.assignedToName.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                                {renderUserAvatar(task.assignedToPhotoURL, task.assignedToName)}
                               </span>
                             )}
                           </div>
@@ -2120,11 +2090,7 @@ export default function TaskTracker() {
                         >
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-sm truncate mr-2">{task.title}</h4>
-                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${getPriorityStyles(task.priority)}`}>
                               {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                             </div>
                           </div>
@@ -2132,13 +2098,7 @@ export default function TaskTracker() {
                             <span className="whitespace-nowrap">{new Date(task.dueDate).toLocaleDateString()}</span>
                             {task.assignedToName && (
                               <span className="flex items-center">
-                                {task.assignedToPhotoURL ? (
-                                  <img src={task.assignedToPhotoURL} alt={task.assignedToName} className="w-6 h-6 rounded-full" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary">
-                                    {task.assignedToName.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                                {renderUserAvatar(task.assignedToPhotoURL, task.assignedToName)}
                               </span>
                             )}
                           </div>
@@ -2222,11 +2182,7 @@ export default function TaskTracker() {
                         >
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-sm truncate mr-2">{task.title}</h4>
-                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${getPriorityStyles(task.priority)}`}>
                               {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                             </div>
                           </div>
@@ -2234,13 +2190,7 @@ export default function TaskTracker() {
                             <span className="whitespace-nowrap">{new Date(task.dueDate).toLocaleDateString()}</span>
                             {task.assignedToName && (
                               <span className="flex items-center">
-                                {task.assignedToPhotoURL ? (
-                                  <img src={task.assignedToPhotoURL} alt={task.assignedToName} className="w-6 h-6 rounded-full" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary">
-                                    {task.assignedToName.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                                {renderUserAvatar(task.assignedToPhotoURL, task.assignedToName)}
                               </span>
                             )}
                           </div>
@@ -2319,11 +2269,7 @@ export default function TaskTracker() {
                         >
                           <div className="flex justify-between items-start mb-2">
                             <h4 className="font-medium text-sm truncate mr-2">{task.title}</h4>
-                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${
-                              task.priority === 'high' ? 'bg-red-100 text-red-800' :
-                              task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-green-100 text-green-800'
-                            }`}>
+                            <div className={`shrink-0 px-2 py-0.5 rounded-full text-xs ${getPriorityStyles(task.priority)}`}>
                               {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                             </div>
                           </div>
@@ -2331,13 +2277,7 @@ export default function TaskTracker() {
                             <span className="whitespace-nowrap">{new Date(task.dueDate).toLocaleDateString()}</span>
                             {task.assignedToName && (
                               <span className="flex items-center">
-                                {task.assignedToPhotoURL ? (
-                                  <img src={task.assignedToPhotoURL} alt={task.assignedToName} className="w-6 h-6 rounded-full" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary">
-                                    {task.assignedToName.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                                {renderUserAvatar(task.assignedToPhotoURL, task.assignedToName)}
                               </span>
                             )}
                           </div>
@@ -2412,13 +2352,7 @@ export default function TaskTracker() {
                             <span className="whitespace-nowrap">{new Date(task.dueDate).toLocaleDateString()}</span>
                             {task.assignedToName && (
                               <span className="flex items-center">
-                                {task.assignedToPhotoURL ? (
-                                  <img src={task.assignedToPhotoURL} alt={task.assignedToName} className="w-6 h-6 rounded-full" />
-                                ) : (
-                                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] text-primary">
-                                    {task.assignedToName.charAt(0).toUpperCase()}
-                                  </div>
-                                )}
+                                {renderUserAvatar(task.assignedToPhotoURL, task.assignedToName)}
                               </span>
                             )}
                           </div>
@@ -2661,7 +2595,13 @@ export default function TaskTracker() {
                                                 <div key={comment.id} className="bg-gray-50 p-2 rounded-md">
                                                   <div className="flex items-center gap-2 mb-1">
                                                     {comment.createdByPhotoURL ? (
-                                                      <img src={comment.createdByPhotoURL} alt={comment.createdByName} className="w-5 h-5 rounded-full" />
+                                                      <Image 
+                                                        src={comment.createdByPhotoURL || '/default-avatar.png'} 
+                                                        alt={comment.createdByName || 'User'} 
+                                                        width={24} 
+                                                        height={24} 
+                                                        className="rounded-full" 
+                                                      />
                                                     ) : (
                                                       <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-primary text-xs">
                                                         {comment.createdByName.charAt(0).toUpperCase()}
@@ -2923,30 +2863,7 @@ export default function TaskTracker() {
                                 )}
                               </td>
                               <td className="px-3 py-3 align-top">
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  task.status === 'completed' 
-                                    ? 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400' 
-                                    : task.priority === 'high' 
-                                      ? 'bg-red-100 text-red-800' 
-                                      : task.priority === 'medium' 
-                                        ? 'bg-yellow-100 text-yellow-800' 
-                                        : 'bg-green-100 text-green-800'
-                                }`}>
-                                  {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                                </span>
-                              </td>
-                              <td className="px-3 py-3 align-top hidden">
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  task.status === 'open' 
-                                    ? 'bg-blue-100 text-blue-800' 
-                                    : task.status === 'completed' 
-                                      ? 'bg-green-100 text-green-800 opacity-70' 
-                                      : task.status === 'in-progress'
-                                        ? 'bg-emerald-100 text-emerald-800'
-                                        : task.status === 'paused'
-                                          ? 'bg-amber-100 text-amber-800'
-                                          : 'bg-gray-100 text-gray-800'
-                                }`}>
+                                <span className={`px-2 py-1 rounded-full text-xs ${getStatusStyles(task.status)}`}>
                                   {task.status === 'in-progress' 
                                     ? 'In Progress' 
                                     : task.status === 'paused'
@@ -2969,10 +2886,12 @@ export default function TaskTracker() {
                                     onMouseLeave={() => setTooltipInfo(null)}
                                   >
                                     {task.assignedToPhotoURL ? (
-                                      <img 
-                                        src={task.assignedToPhotoURL} 
-                                        alt={task.assignedToName} 
-                                        className={`w-8 h-8 rounded-full object-cover border ${task.status === 'completed' ? 'border-gray-300 dark:border-gray-700' : 'border-primary/20'}`}
+                                      <Image 
+                                        src={task.assignedToPhotoURL || '/default-avatar.png'} 
+                                        alt={task.assignedToName || 'User'} 
+                                        width={32} 
+                                        height={32} 
+                                        className={`w-8 h-8 rounded-full object-cover border ${getBorderStyles(task.status)}`}
                                       />
                                     ) : (
                                       <div 
@@ -3067,7 +2986,7 @@ export default function TaskTracker() {
                             ? 'text-gray-400 cursor-not-allowed'
                             : 'hover:bg-accent'
                         }`}
-                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
                         disabled={currentPage <= 1}
                         title="Previous page"
                       >
@@ -3080,7 +2999,7 @@ export default function TaskTracker() {
                             ? 'text-gray-400 cursor-not-allowed'
                             : 'hover:bg-accent'
                         }`}
-                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
                         disabled={currentPage >= totalPages}
                         title="Next page"
                       >

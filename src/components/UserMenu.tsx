@@ -10,7 +10,6 @@ import { useProfile } from '@/context/ProfileContext';
 import { useRouter } from 'next/navigation';
 import { getFirestore, doc, updateDoc } from 'firebase/firestore';
 import {
-  UserIcon,
   Cog6ToothIcon,
   RectangleGroupIcon,
   ClipboardDocumentListIcon,
@@ -30,6 +29,10 @@ interface UserMenuProps {
   onLanguageClick?: () => void;
 }
 
+interface UserData {
+  id: string;
+  // Add other properties if needed for type safety
+}
 
 export default function UserMenu({ isOpen, onClose, onLogoutClick, onLanguageClick }: UserMenuProps) {
   const { user } = useAuth();
@@ -61,7 +64,7 @@ export default function UserMenu({ isOpen, onClose, onLogoutClick, onLanguageCli
     menuItems.unshift({ label: 'Admin Dashboard', href: '/admin', icon: ShieldCheckIcon });
   }
 
-  async function resetUserTypeInDB(user: any) {
+  async function resetUserTypeInDB(user: UserData) {
     const db = getFirestore();
     const userRef = doc(db, 'users', user.id);
 

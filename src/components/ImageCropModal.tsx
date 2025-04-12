@@ -1,18 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import ReactCrop, { Crop, PixelCrop } from 'react-image-crop';
 import { Dialog, Transition } from '@headlessui/react';
-import { Fragment } from 'react';
 import 'react-image-crop/dist/ReactCrop.css';
+import Image from 'next/image';
 
 interface ImageCropModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onCropComplete: (croppedImage: Blob) => void;
-  imageFile: File;
-  aspectRatio?: number;
-  circularCrop?: boolean;
+  readonly isOpen: boolean;
+  readonly onClose: () => void;
+  readonly onCropComplete: (croppedImage: Blob) => void;
+  readonly imageFile: File;
+  readonly aspectRatio?: number;
+  readonly circularCrop?: boolean;
 }
 
 export default function ImageCropModal({
@@ -32,7 +32,7 @@ export default function ImageCropModal({
   });
   const [completedCrop, setCompletedCrop] = useState<PixelCrop | null>(null);
   const imgRef = useRef<HTMLImageElement>(null);
-  const [imgSrc, setImgSrc] = useState<string>('');
+  const [imageSrc, setImageSrc] = useState<string>('');
 
   // Load image when file changes
   useEffect(() => {
@@ -40,7 +40,7 @@ export default function ImageCropModal({
     
     const reader = new FileReader();
     reader.addEventListener('load', () => {
-      setImgSrc(reader.result?.toString() || '');
+      setImageSrc(reader.result ? String(reader.result) : '');
     });
     reader.readAsDataURL(imageFile);
   }, [imageFile]);
@@ -91,10 +91,10 @@ export default function ImageCropModal({
   };
 
   return (
-    <Transition appear show={isOpen} as={Fragment}>
+    <Transition appear show={isOpen} as={React.Fragment}>
       <Dialog as="div" className="relative z-[100]" onClose={onClose}>
         <Transition.Child
-          as={Fragment}
+          as={React.Fragment}
           enter="ease-out duration-300"
           enterFrom="opacity-0"
           enterTo="opacity-100"
@@ -108,7 +108,7 @@ export default function ImageCropModal({
         <div className="fixed inset-0 overflow-y-auto z-[101]">
           <div className="flex min-h-full items-center justify-center p-4">
             <Transition.Child
-              as={Fragment}
+              as={React.Fragment}
               enter="ease-out duration-300"
               enterFrom="opacity-0 scale-95"
               enterTo="opacity-100 scale-100"
@@ -122,7 +122,7 @@ export default function ImageCropModal({
                 </Dialog.Title>
 
                 <div className="flex-1 overflow-y-auto p-6">
-                  {imgSrc && (
+                  {imageSrc && (
                     <ReactCrop
                       crop={crop}
                       onChange={(_, percentCrop) => setCrop(percentCrop)}
@@ -130,11 +130,15 @@ export default function ImageCropModal({
                       aspect={aspectRatio}
                       circularCrop={circularCrop}
                     >
-                      <img
+                      <Image
                         ref={imgRef}
-                        src={imgSrc}
+                        src={imageSrc}
                         alt="Crop preview"
                         className="max-h-[calc(100vh-16rem)] w-auto mx-auto"
+                        width={500}
+                        height={500}
+                        style={{ width: 'auto', height: 'auto' }}
+                        unoptimized
                       />
                     </ReactCrop>
                   )}

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -67,7 +69,6 @@ export default function SettingsAdminPage() {
   const { appFirebase, appFirebaseLoading, appFirebaseError, selectedApp } = useAdminApp();
   const { 
     getDocument, 
-    updateDocument,
     saveDocument
   } = useAppFirestore();
   
@@ -111,7 +112,7 @@ export default function SettingsAdminPage() {
   // Language settings state
   const [languageSettings, setLanguageSettings] = useState<LanguageSettings[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<string>('en');
-  const [availableLanguages, setAvailableLanguages] = useState<{ code: string; name: string }[]>([
+  const availableLanguages = [
     { code: 'en', name: 'English' },
     { code: 'fr', name: 'French' },
     { code: 'es', name: 'Spanish' },
@@ -122,7 +123,7 @@ export default function SettingsAdminPage() {
     { code: 'zh', name: 'Chinese' },
     { code: 'ja', name: 'Japanese' },
     { code: 'ar', name: 'Arabic' }
-  ]);
+  ];
 
   // Add after the languageSettings state:
   const [labelData, setLabelData] = useState<Record<string, any>>({});
@@ -136,7 +137,7 @@ export default function SettingsAdminPage() {
 
   // Redirect non-admin users and fetch settings
   useEffect(() => {
-    if (!user || !user.isAdmin) {
+    if (!user?.isAdmin) {
       router.push('/login');
     } else {
       // Fetch existing settings
@@ -1408,7 +1409,7 @@ export default function SettingsAdminPage() {
                 <h3 className="font-medium mb-2">Working with Labels</h3>
                 <ul className="list-disc list-inside space-y-2 text-sm">
                   <li>Click on a section to expand/collapse it</li>
-                  <li>Click "Edit" to modify any label value</li>
+                  <li>Click &quot;Edit&quot; to modify any label value</li>
                   <li>Switch to JSON View for bulk editing</li>
                   <li>Labels for English and French are built-in</li>
                   <li>For other languages, changes are saved to application settings</li>
@@ -1530,8 +1531,8 @@ export default function SettingsAdminPage() {
               <div className="mt-4 p-4 border rounded-md bg-muted dark:bg-muted">
                 <h3 className="font-medium mb-2">Setting Up Typesense</h3>
                 <ul className="list-disc list-inside space-y-2 text-sm">
-                  <li>Typesense is a fast, typo-tolerant search engine that's simple to set up and use.</li>
-                  <li>To use Typesense, you'll need to create a Typesense cluster (either self-hosted or cloud).</li>
+                  <li>Typesense is a fast, typo-tolerant search engine that&apos;s simple to set up and use.</li>
+                  <li>To use Typesense, you&apos;ll need to create a Typesense cluster (either self-hosted or cloud).</li>
                   <li>Generate an API key with search and write permissions.</li>
                   <li>The search index name defines the collection where your searchable data will be stored.</li>
                   <li>For more information, visit <a href="https://typesense.org/docs/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Typesense Documentation</a>.</li>

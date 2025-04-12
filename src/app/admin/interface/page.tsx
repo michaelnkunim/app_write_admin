@@ -1,10 +1,13 @@
 'use client';
 
-import { useState, ChangeEvent, useEffect, useRef } from 'react';
+import { useState, ChangeEvent, useEffect, useRef, useCallback } from 'react';
 import { storage } from '@/lib/firebase';
 import { serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { useAppSettings } from '@/context/AppSettingsContext';
+import { useAdminApp } from '@/context/AdminAppContext';
+import { useAppFirestore } from '@/hooks/useAppFirestore';
+import { FaFacebook, FaInstagram, FaLinkedin, FaTwitter, FaYoutube } from 'react-icons/fa';
+import { MenuColumn } from '@/context/AppSettingsContext';
 import { 
   MenuIcon, 
   ImageIcon, 
@@ -20,23 +23,13 @@ import {
   Check,
   AlertTriangle,
   Info,
-  ChevronUp,
   Layout,
-  Type,
   Image as ImageLucide,
   Share2,
-  Facebook, 
-  Twitter, 
-  Instagram, 
-  Linkedin, 
-  Youtube
 } from 'lucide-react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { MenuColumn } from '@/context/AppSettingsContext';
-import { useAdminApp } from '@/context/AdminAppContext';
-import { useAppFirestore } from '@/hooks/useAppFirestore';
+
 
 interface Menu {
   id: string;
@@ -154,118 +147,125 @@ interface SocialMediaItem {
 export default function AdminInterface() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'menus';
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const { appSettings: contextAppSettings } = useAppSettings();
-  const { appFirebase, appFirebaseLoading, appFirebaseError, selectedApp } = useAdminApp();
-  const { 
-    getDocument, 
-    saveDocument,
-    queryCollection,
-    db
-  } = useAppFirestore();
-
-  // Modal state
+  const selectedTab = searchParams.get('tab') || 'menus';
+  // const { user } = useAuth();
+  // const { appId, appSettings: contextAppSettings, saveAppSettings: saveContextAppSettings } = useAdminApp();
+  const { appSettings: contextAppSettings, appFirebase } = useAdminApp();
+  const { appFirebaseError, appFirebaseLoading, getDocument, saveDocument, db } = useAppFirestore();
+  
+  // State for app settings
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [menuItems, setMenuItems] = useState<MenuItems>({});
+  const [sliders, setSliders] = useState<SliderContainer[]>([]);
+  const [sliderItems, setSliderItems] = useState<SliderItems>({});
+  const [ads, setAds] = useState<AdItem[]>([]);
+  const [socialMedia, setSocialMedia] = useState<SocialMediaItem[]>([]);
+  
+  // State for UI
+  const [loading, setLoading] = useState(true);
+  const [selectedMenu, setSelectedMenu] = useState<string | null>(null);
+  const [selectedSlider, setSelectedSlider] = useState<string | null>(null);
+  const [selectedAd, setSelectedAd] = useState<string | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [expandedColumns, setExpandedColumns] = useState<{[key: string]: {[key: number]: boolean}}>({});
+  const [expandedMenuItems, setExpandedMenuItems] = useState<{[key: string]: {[key: number]: {[key: number]: boolean}}}>({});
+  
+  // State for new menu
+  const [newMenu, setNewMenu] = useState<Omit<Menu, 'id'>>({
+    title: '',
+    zone: 'footer',
+    columns: 1
+  });
+  
+  // State for new slider
+  const [newSlider, setNewSlider] = useState<Omit<SliderContainer, 'id'>>({
+    title: '',
+    zone: 'home'
+  });
+  
+  // State for new slider item
+  const [newSliderItem, setNewSliderItem] = useState<Omit<SliderItem, 'id' | 'order'>>({
+    title: '',
+    link: '',
+    imageUrl: ''
+  });
+  
+  // State for modals
   const [modal, setModal] = useState<ModalState>({
     isOpen: false,
     type: 'info',
     title: '',
-    message: '',
+    message: ''
   });
-
-  // Menus state
-  const [menus, setMenus] = useState<Menu[]>([]);
-  const [newMenu, setNewMenu] = useState<Omit<Menu, 'id'>>({ title: '', zone: 'footer', columns: 1 });
-  const [menuItems, setMenuItems] = useState<MenuItems>({});
-  const [selectedMenu, setSelectedMenu] = useState<string | null>(null);
   
-  // Sliders state
-  const [sliders, setSliders] = useState<SliderContainer[]>([]);
-  const [sliderItems, setSliderItems] = useState<SliderItems>({});
-  const [newSlider, setNewSlider] = useState<Omit<SliderContainer, 'id'>>({ 
-    title: '', 
-    zone: 'homepage'
-  });
-  const [newSliderItem, setNewSliderItem] = useState<Omit<SliderItem, 'id' | 'imageUrl' | 'order'>>({
-    title: '',
-    link: '',
-  });
-  const [selectedSlider, setSelectedSlider] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [savingSliderItem, setSavingSliderItem] = useState(false);
+  // Toast state
+  const [toasts, setToasts] = useState<Toast[]>([]);
   
-  const [loading, setLoading] = useState(true);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-
-  // Add new state variables for editing slider items
-  const [editingSliderItem, setEditingSliderItem] = useState<string | null>(null);
+  // Editing states
+  const [editingSliderItem, setEditingSliderItem] = useState<{ sliderId: string, itemId: string } | null>(null);
   const [editSliderItem, setEditSliderItem] = useState<Omit<SliderItem, 'id' | 'order'>>({
     title: '',
     link: '',
     imageUrl: ''
   });
-  const [editImageFile, setEditImageFile] = useState<File | null>(null);
-  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
-  const [updatingSliderItem, setUpdatingSliderItem] = useState(false);
+  
+  // File upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Add toaster state
-  const [toasts, setToasts] = useState<Toast[]>([]);
-
-  // Add state to track which columns are expanded
-  const [expandedColumns, setExpandedColumns] = useState<Record<string, boolean>>({});
-
-  // Add state to track which menu items are expanded
-  const [expandedMenuItems, setExpandedMenuItems] = useState<Record<string, boolean>>({});
-
-  // Ad-related state
-  const [ads, setAds] = useState<AdItem[]>([]);
-  const [newAd, setNewAd] = useState<Omit<AdItem, 'id'>>({
-    title: '',
-    link: '',
-    type: AdType.TEXT,
-    zone: '',
-    active: true,
-    order: 0,
-    content: '',
-  });
-  const [selectedAd, setSelectedAd] = useState<string | null>(null);
+  const editAdFileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Add file state variables
   const [adImageFile, setAdImageFile] = useState<File | null>(null);
   const [adImagePreview, setAdImagePreview] = useState<string | null>(null);
-  const [editingAd, setEditingAd] = useState<boolean>(false);
+  const [editAdImagePreview, setEditAdImagePreview] = useState<string | null>(null);
+  const [editAdImageFile, setEditAdImageFile] = useState<File | null>(null);
   const [creatingAd, setCreatingAd] = useState<boolean>(false);
+  
+  // States for ad creation and editing
+  const [newAd, setNewAd] = useState<Omit<AdItem, 'id' | 'order'>>({
+    title: '',
+    link: '',
+    type: AdType.IMAGE,
+    zone: '',
+    active: true,
+    content: '',
+    imageUrl: '',
+    orientation: AdOrientation.BANNER
+  });
+  
+  const [editingAd, setEditingAd] = useState<string | null>(null);
   const [editAd, setEditAd] = useState<Omit<AdItem, 'id' | 'order'>>({
     title: '',
     link: '',
-    type: AdType.TEXT,
+    type: AdType.IMAGE,
     zone: '',
     active: true,
     content: '',
+    imageUrl: '',
+    orientation: AdOrientation.BANNER
   });
-  const [editAdImageFile, setEditAdImageFile] = useState<File | null>(null);
-  const [editAdImagePreview, setEditAdImagePreview] = useState<string | null>(null);
-  const [updatingAd, setUpdatingAd] = useState(false);
-  const editAdFileInputRef = useRef<HTMLInputElement>(null);
-
-  // Add social media state
-  const [socialMedia, setSocialMedia] = useState<SocialMediaItem[]>([]);
+  
+  // States for social media
   const [newSocialMedia, setNewSocialMedia] = useState<Omit<SocialMediaItem, 'id' | 'order'>>({
     title: '',
     link: '',
     icon: 'facebook'
   });
+  
   const [editingSocialMedia, setEditingSocialMedia] = useState<string | null>(null);
   const [editSocialMedia, setEditSocialMedia] = useState<Omit<SocialMediaItem, 'id' | 'order'>>({
     title: '',
     link: '',
     icon: ''
   });
-
-  useEffect(() => {
-    fetchAppSettings();
-  }, []);
-
+  
+  // Add these missing states for slider functionality
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [savingSliderItem, setSavingSliderItem] = useState<boolean>(false);
+  
+  // Replace all fetch app settings function to use modals
   // Helper to open a modal
   const openModal = (type: ModalType, title: string, message: string, onConfirm?: () => void, onCancel?: () => void) => {
     setModal({
@@ -285,9 +285,8 @@ export default function AdminInterface() {
       isOpen: false
     }));
   };
-
-  // Replace all fetch app settings function to use modals
-  const fetchAppSettings = async () => {
+  
+  const fetchAppSettings = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -310,7 +309,7 @@ export default function AdminInterface() {
         const data = appSettingsDoc;
         
         // Convert old format to new format if needed
-        let convertedMenuItems = { ...data.menuItems } as MenuItems;
+        const convertedMenuItems = { ...data.menuItems } as MenuItems;
         
         // Check if we need to convert from old MenuItem[][] to MenuColumn[]
         Object.keys(convertedMenuItems).forEach(menuId => {
@@ -326,12 +325,12 @@ export default function AdminInterface() {
           }
         });
         
-        setMenus(data.menus || []);
-        setMenuItems(convertedMenuItems || {});
-        setSliders(data.sliders || []);
-        setSliderItems(data.sliderItems || {});
-        setAds(data.ads || []);
-        setSocialMedia(data.socialMedia || []);
+        setMenus(data.menus ?? []);
+        setMenuItems(convertedMenuItems ?? {});
+        setSliders(data.sliders ?? []);
+        setSliderItems(data.sliderItems ?? {});
+        setAds(data.ads ?? []);
+        setSocialMedia(data.socialMedia ?? []);
         
         // Select the first menu if available
         if (data.menus && data.menus.length > 0 && !selectedMenu) {
@@ -383,7 +382,12 @@ export default function AdminInterface() {
       openModal('error', 'Error', 'Failed to load app settings. Please try again.');
       setLoading(false);
     }
-  };
+  }, [appFirebaseError, appFirebaseLoading, selectedMenu, selectedSlider, selectedAd, getDocument, saveDocument]);
+
+  useEffect(() => {
+    fetchAppSettings();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Save all app settings with toasters instead of modals
   const saveAppSettings = async () => {
@@ -411,7 +415,7 @@ export default function AdminInterface() {
         ads,
         socialMedia,
         updatedAt: new Date(),
-        adzones: contextAppSettings.adzones || []
+        adzones: contextAppSettings.adzones ?? []
       };
       
       // Save to Firestore using the app's Firestore instance
@@ -422,20 +426,6 @@ export default function AdminInterface() {
     } catch (error) {
       console.error('Error saving settings:', error);
       showToast('error', 'Failed to save settings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Update saveMenuItems to use toaster
-  const saveMenuItems = async () => {
-    try {
-      setLoading(true);
-      await saveAppSettings();
-      showToast('success', 'Menu items saved successfully!');
-    } catch (error) {
-      console.error('Error saving menu items:', error);
-      showToast('error', 'Failed to save menu items. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -490,7 +480,7 @@ export default function AdminInterface() {
   // Add a function to update column titles
   const handleColumnTitleChange = (menuId: string, columnIndex: number, title: string) => {
     setMenuItems(prev => {
-      const menu = [...(prev[menuId] || [])];
+      const menu = [...(prev[menuId] ?? [])];
       if (!menu[columnIndex]) {
         menu[columnIndex] = { title: `Column ${columnIndex + 1}`, items: [] };
       }
@@ -513,7 +503,7 @@ export default function AdminInterface() {
     value: string
   ) => {
     setMenuItems(prev => {
-      const menu = [...(prev[menuId] || [])];
+      const menu = [...(prev[menuId] ?? [])];
       if (!menu[columnIndex]) {
         menu[columnIndex] = { title: `Column ${columnIndex + 1}`, items: [] };
       }
@@ -534,7 +524,7 @@ export default function AdminInterface() {
 
   const addMenuItem = (menuId: string, columnIndex: number) => {
     setMenuItems(prev => {
-      const menu = [...(prev[menuId] || [])];
+      const menu = [...(prev[menuId] ?? [])];
       if (!menu[columnIndex]) {
         menu[columnIndex] = { title: `Column ${columnIndex + 1}`, items: [] };
       }
@@ -556,7 +546,7 @@ export default function AdminInterface() {
 
   const removeMenuItem = (menuId: string, columnIndex: number, itemIndex: number) => {
     setMenuItems(prev => {
-      const menu = [...(prev[menuId] || [])];
+      const menu = [...(prev[menuId] ?? [])];
       if (menu[columnIndex]) {
         menu[columnIndex].items = menu[columnIndex].items.filter((_, idx) => idx !== itemIndex);
       }
@@ -645,7 +635,7 @@ export default function AdminInterface() {
       async () => {
         try {
           // Delete all slider item images from storage
-          const items = sliderItems[sliderId] || [];
+          const items = sliderItems[sliderId] ?? [];
           for (const item of items) {
             if (item.imageUrl) {
               try {
@@ -781,7 +771,7 @@ export default function AdminInterface() {
       // Upload image to the selected app's storage
       const timestamp = Date.now();
       const random = Math.floor(Math.random() * 10000);
-      const storageRef = ref(appFirebase?.storage || storage, `sliders/${timestamp}_${random}_${imageFile.name}`);
+      const storageRef = ref(appFirebase?.storage ?? storage, `sliders/${timestamp}_${random}_${imageFile.name}`);
       await uploadBytes(storageRef, imageFile);
       const imageUrl = await getDownloadURL(storageRef);
       
@@ -789,7 +779,7 @@ export default function AdminInterface() {
       const itemId = `item_${timestamp}_${random}`;
       
       // Get current slider items
-      const currentItems = sliderItems[selectedSlider] || [];
+      const currentItems = sliderItems[selectedSlider] ?? [];
       
       // Create slider item data
       const sliderItemData: SliderItem = {
@@ -836,14 +826,14 @@ export default function AdminInterface() {
         try {
           // Delete image from the selected app's storage
           try {
-            const imageRef = ref(appFirebase?.storage || storage, imageUrl);
+            const imageRef = ref(appFirebase?.storage ?? storage, imageUrl);
             await deleteObject(imageRef);
           } catch (error) {
             console.error('Error deleting image:', error);
           }
           
           // Update state
-          const currentItems = sliderItems[sliderId] || [];
+          const currentItems = sliderItems[sliderId] ?? [];
           const updatedItems = currentItems.filter(item => item.id !== itemId);
           
           // Reorder items after deletion
@@ -874,7 +864,7 @@ export default function AdminInterface() {
   };
 
   const moveSliderItem = (sliderId: string, itemId: string, direction: 'up' | 'down') => {
-    const currentItems = sliderItems[sliderId] || [];
+    const currentItems = sliderItems[sliderId] ?? [];
     const itemIndex = currentItems.findIndex(item => item.id === itemId);
     
     if (itemIndex === -1) return;
@@ -945,7 +935,7 @@ export default function AdminInterface() {
     if (!item) return;
     
     // Set the editing state
-    setEditingSliderItem(itemId);
+    setEditingSliderItem({ sliderId, itemId });
     setEditSliderItem({
       title: item.title,
       link: item.link,
@@ -1020,7 +1010,7 @@ export default function AdminInterface() {
       setUpdatingSliderItem(true);
       
       // Find current item to get its order
-      const currentItems = sliderItems[sliderId] || [];
+      const currentItems = sliderItems[sliderId] ?? [];
       const currentItem = currentItems.find(item => item.id === itemId);
       
       if (!currentItem) {
@@ -1034,14 +1024,14 @@ export default function AdminInterface() {
       if (editImageFile) {
         try {
           // First upload the new image to the selected app's storage
-          const storageRef = ref(appFirebase?.storage || storage, `sliders/${Date.now()}_${editImageFile.name}`);
+          const storageRef = ref(appFirebase?.storage ?? storage, `sliders/${Date.now()}_${editImageFile.name}`);
           await uploadBytes(storageRef, editImageFile);
           imageUrl = await getDownloadURL(storageRef);
           
           // Then delete old image if it exists and is different
           if (currentItem.imageUrl && currentItem.imageUrl !== editSliderItem.imageUrl) {
             try {
-              const oldImageRef = ref(appFirebase?.storage || storage, currentItem.imageUrl);
+              const oldImageRef = ref(appFirebase?.storage ?? storage, currentItem.imageUrl);
               await deleteObject(oldImageRef);
             } catch (deleteError) {
               console.error('Error deleting old image:', deleteError);
@@ -1129,7 +1119,7 @@ export default function AdminInterface() {
 
   // Add functions to expand or collapse all items in a column
   const expandAllMenuItems = (menuId: string, columnIndex: number) => {
-    const columnItems = menuItems[menuId][columnIndex].items || [];
+    const columnItems = menuItems[menuId][columnIndex].items ?? [];
     const newExpandedState = { ...expandedMenuItems };
     
     columnItems.forEach((_, itemIndex) => {
@@ -1140,7 +1130,7 @@ export default function AdminInterface() {
   };
 
   const collapseAllMenuItems = (menuId: string, columnIndex: number) => {
-    const columnItems = menuItems[menuId][columnIndex].items || [];
+    const columnItems = menuItems[menuId][columnIndex].items ?? [];
     const newExpandedState = { ...expandedMenuItems };
     
     columnItems.forEach((_, itemIndex) => {
@@ -1239,7 +1229,7 @@ export default function AdminInterface() {
       
       // If it's an image ad, upload the image to the selected app's storage
       if (newAd.type === AdType.IMAGE && adImageFile) {
-        const storageRef = ref(appFirebase?.storage || storage, `ads/${adId}`);
+        const storageRef = ref(appFirebase?.storage ?? storage, `ads/${adId}`);
         await uploadBytes(storageRef, adImageFile);
         imageUrl = await getDownloadURL(storageRef);
       }
@@ -1254,7 +1244,7 @@ export default function AdminInterface() {
         active: newAd.active,
         order: ads.length,
         // Only add content for TEXT type ads
-        ...(newAd.type === AdType.TEXT ? { content: newAd.content || '' } : {}),
+        ...(newAd.type === AdType.TEXT ? { content: newAd.content ?? '' } : {}),
         // Only add imageUrl and orientation for IMAGE type
         ...(newAd.type === AdType.IMAGE ? { 
           imageUrl,
@@ -1311,7 +1301,7 @@ export default function AdminInterface() {
           // If it's an image ad, delete the image from the selected app's storage
           if (adToDelete.type === AdType.IMAGE && adToDelete.imageUrl) {
             try {
-              const imageRef = ref(appFirebase?.storage || storage, adToDelete.imageUrl);
+              const imageRef = ref(appFirebase?.storage ?? storage, adToDelete.imageUrl);
               await deleteObject(imageRef);
             } catch (error) {
               console.error('Error deleting ad image:', error);
@@ -1493,7 +1483,7 @@ export default function AdminInterface() {
         ads,
         socialMedia,
         updatedAt: new Date(),
-        adzones: contextAppSettings.adzones || []
+        adzones: contextAppSettings.adzones ?? []
       };
       
       // Save to Firestore using the app's Firestore instance
@@ -1521,11 +1511,11 @@ export default function AdminInterface() {
       type: ad.type,
       zone: ad.zone,
       active: ad.active,
-      content: ad.content || '',
+      content: ad.content ?? '',
       imageUrl: ad.imageUrl,
       orientation: ad.orientation
     });
-    setEditAdImagePreview(ad.imageUrl || null);
+    setEditAdImagePreview(ad.imageUrl ?? null);
   };
 
   // Add function to cancel editing
@@ -1639,14 +1629,14 @@ export default function AdminInterface() {
       if (editAdImageFile) {
         try {
           // First upload the new image to the selected app's storage
-          const storageRef = ref(appFirebase?.storage || storage, `ads/${adId}`);
+          const storageRef = ref(appFirebase?.storage ?? storage, `ads/${adId}`);
           await uploadBytes(storageRef, editAdImageFile);
           imageUrl = await getDownloadURL(storageRef);
           
           // Then delete old image if it exists and is different
           if (editAd.imageUrl && editAd.imageUrl !== imageUrl) {
             try {
-              const oldImageRef = ref(appFirebase?.storage || storage, editAd.imageUrl);
+              const oldImageRef = ref(appFirebase?.storage ?? storage, editAd.imageUrl);
               await deleteObject(oldImageRef);
             } catch (deleteError) {
               console.error('Error deleting old image:', deleteError);
@@ -1669,9 +1659,9 @@ export default function AdminInterface() {
         type: editAd.type,
         zone: editAd.zone,
         active: editAd.active,
-        order: ads.find(a => a.id === adId)?.order || 0,
+        order: ads.find(a => a.id === adId)?.order ?? 0,
         // Only add content for TEXT type ads
-        ...(editAd.type === AdType.TEXT ? { content: editAd.content || '' } : {}),
+        ...(editAd.type === AdType.TEXT ? { content: editAd.content ?? '' } : {}),
         // Only add imageUrl and orientation for IMAGE type
         ...(editAd.type === AdType.IMAGE ? { 
           imageUrl,
@@ -1808,7 +1798,7 @@ export default function AdminInterface() {
           <button
             onClick={() => navigateToTab('menus')}
             className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
-              activeTab === 'menus' 
+              selectedTab === 'menus' 
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -1819,7 +1809,7 @@ export default function AdminInterface() {
           <button
             onClick={() => navigateToTab('sliders')}
             className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
-              activeTab === 'sliders' 
+              selectedTab === 'sliders' 
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -1830,7 +1820,7 @@ export default function AdminInterface() {
           <button
             onClick={() => navigateToTab('ads')}
             className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
-              activeTab === 'ads' 
+              selectedTab === 'ads' 
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -1841,7 +1831,7 @@ export default function AdminInterface() {
           <button
             onClick={() => navigateToTab('social')}
             className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
-              activeTab === 'social' 
+              selectedTab === 'social' 
                 ? 'border-b-2 border-primary text-primary'
                 : 'text-gray-500 hover:text-gray-700'
             }`}
@@ -1853,7 +1843,7 @@ export default function AdminInterface() {
       </div>
       
       {/* Menu Management */}
-      {activeTab === 'menus' && (
+      {selectedTab === 'menus' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Menu Creation Form */}
           <div className="lg:col-span-1">
@@ -2051,9 +2041,9 @@ export default function AdminInterface() {
                         
                         {expandedColumns[`${selectedMenu}_${columnIndex}`] !== false && (
                           <div className="p-3 space-y-2">
-                            {(menuItems[selectedMenu][columnIndex].items || []).map((item, itemIndex) => {
+                            {(menuItems[selectedMenu][columnIndex].items ?? []).map((item, itemIndex) => {
                               // Determine if this item has content
-                              const hasContent = (item.text && item.text.trim() !== '') || (item.url && item.url.trim() !== '');
+                              const hasContent = (item.text && item.text.trim() !== '') ?? (item.url && item.url.trim() !== '');
                               
                               return (
                                 <div key={itemIndex} className="border rounded-md overflow-hidden">
@@ -2073,7 +2063,7 @@ export default function AdminInterface() {
                                         <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></div>
                                       )}
                                       <span className={`text-xs ${hasContent ? 'text-gray-700 font-medium' : 'text-gray-500'} truncate`}>
-                                        {item.text || 'Untitled item'}
+                                        {item.text ?? 'Untitled item'}
                                       </span>
                                     </div>
                                     <div className="flex items-center gap-1">
@@ -2107,7 +2097,7 @@ export default function AdminInterface() {
                                     <div className="p-2 space-y-1.5">
                                       <input
                                         type="text"
-                                        value={item.text || ''}
+                                        value={item.text ?? ''}
                                         onChange={(e) => handleMenuItemChange(
                                           selectedMenu, 
                                           columnIndex, 
@@ -2124,7 +2114,7 @@ export default function AdminInterface() {
                                         <LinkIcon className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
                                         <input
                                           type="text"
-                                          value={item.url || ''}
+                                          value={item.url ?? ''}
                                           onChange={(e) => handleMenuItemChange(
                                             selectedMenu, 
                                             columnIndex, 
@@ -2174,7 +2164,7 @@ export default function AdminInterface() {
       )}
       
       {/* Sliders Management */}
-      {activeTab === 'sliders' && (
+      {selectedTab === 'sliders' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Slider Creation Form */}
           <div className="lg:col-span-1">
@@ -2231,7 +2221,7 @@ export default function AdminInterface() {
                       <div>
                         <h4 className="font-medium">{slider.title}</h4>
                         <p className="text-xs text-gray-500">
-                          Zone: {slider.zone} • {(sliderItems[slider.id] || []).length} items
+                          Zone: {slider.zone} • {(sliderItems[slider.id] ?? []).length} items
                         </p>
                       </div>
                       <button 
@@ -2387,7 +2377,7 @@ export default function AdminInterface() {
                         .sort((a, b) => a.order - b.order)
                         .map((item) => (
                         <div key={item.id} className="border rounded-md overflow-hidden">
-                          {editingSliderItem === item.id ? (
+                          {editingSliderItem?.itemId === item.id ? (
                             // Edit mode
                             <div className="p-6">
                               <h3 className="font-medium text-lg mb-4">Edit Slide</h3>
@@ -2550,7 +2540,7 @@ export default function AdminInterface() {
                                   
                                   <div className="space-x-2">
                                     <button
-                                      onClick={() => startEditingSliderItem(selectedSlider, item.id)}
+                                      onClick={() => startEditingSliderItem({ sliderId: selectedSlider, itemId: item.id })}
                                       className="p-1.5 text-blue-500 hover:bg-blue-50 rounded inline-flex items-center"
                                     >
                                       <Edit className="w-4 h-4 mr-1" />
@@ -2592,7 +2582,7 @@ export default function AdminInterface() {
       )}
       
       {/* Ads Management */}
-      {activeTab === 'ads' && (
+      {selectedTab === 'ads' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Ad Creation Form */}
           <div className="lg:col-span-1">
@@ -2670,7 +2660,7 @@ export default function AdminInterface() {
                     <label className="block text-sm font-medium mb-1">Ad Content</label>
                     <textarea
                       name="content"
-                      value={newAd.content || ''}
+                      value={newAd.content ?? ''}
                       onChange={handleAdChange}
                       placeholder="Enter ad text content"
                       className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/50 focus:border-primary h-24 resize-none bg-card"
@@ -2684,7 +2674,7 @@ export default function AdminInterface() {
                       <label className="block text-sm font-medium mb-1">Orientation</label>
                       <select
                         name="orientation"
-                        value={newAd.orientation || ''}
+                        value={newAd.orientation ?? ''}
                         onChange={handleAdChange}
                         className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/50 focus:border-primary bg-card"
                       >
@@ -2719,9 +2709,11 @@ export default function AdminInterface() {
                       
                       {adImagePreview && (
                         <div className="mt-2 relative">
-                          <img 
+                          <Image 
                             src={adImagePreview} 
                             alt="Preview" 
+                            width={800}
+                            height={200}
                             className="w-full max-h-[200px] object-contain border rounded"
                           />
                           <button
@@ -2913,7 +2905,7 @@ export default function AdminInterface() {
                                 <label className="block text-sm font-medium mb-1">Ad Content</label>
                                 <textarea
                                   name="content"
-                                  value={editAd.content || ''}
+                                  value={editAd.content ?? ''}
                                   onChange={handleEditAdChange}
                                   placeholder="Enter ad text content"
                                   className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/50 focus:border-primary h-24 resize-none bg-card"
@@ -2927,7 +2919,7 @@ export default function AdminInterface() {
                                   <label className="block text-sm font-medium mb-1">Orientation</label>
                                   <select
                                     name="orientation"
-                                    value={editAd.orientation || ''}
+                                    value={editAd.orientation ?? ''}
                                     onChange={handleEditAdChange}
                                     className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/50 focus:border-primary bg-card"
                                   >
@@ -2962,9 +2954,11 @@ export default function AdminInterface() {
                                   
                                   {editAdImagePreview && (
                                     <div className="mt-2 relative">
-                                      <img 
+                                      <Image 
                                         src={editAdImagePreview} 
                                         alt="Preview" 
+                                        width={800}
+                                        height={200}
                                         className="w-full max-h-[200px] object-contain border rounded"
                                       />
                                       <button
@@ -3082,10 +3076,12 @@ export default function AdminInterface() {
                             ad.imageUrl ? (
                               <div className="flex justify-center">
                                 <a href={ad.link} target="_blank" rel="noopener noreferrer" className="block">
-                                  <img 
+                                  <Image 
                                     src={ad.imageUrl} 
                                     alt={ad.title} 
-                                    className="max-w-full h-auto object-contain border"
+                                    width={800}
+                                    height={200}
+                                    className="w-full max-h-[200px] object-contain border"
                                     style={{ 
                                       maxWidth: ad.orientation ? OrientationDimensions[ad.orientation as keyof typeof OrientationDimensions].split('x')[0] + 'px' : undefined,
                                       maxHeight: ad.orientation ? OrientationDimensions[ad.orientation as keyof typeof OrientationDimensions].split('x')[1] + 'px' : undefined
@@ -3157,7 +3153,7 @@ export default function AdminInterface() {
         </div>
       )}
 
-      {activeTab === 'social' && (
+      {selectedTab === 'social' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Social Media Form */}
           <div className="lg:col-span-1">
@@ -3379,15 +3375,15 @@ export default function AdminInterface() {
 const renderSocialIcon = (icon: string) => {
   switch (icon) {
     case 'facebook':
-      return <Facebook className="w-5 h-5" />;
+      return <FaFacebook className="w-5 h-5" />;
     case 'twitter':
-      return <Twitter className="w-5 h-5" />;
+      return <FaTwitter className="w-5 h-5" />;
     case 'instagram':
-      return <Instagram className="w-5 h-5" />;
+      return <FaInstagram className="w-5 h-5" />;
     case 'linkedin':
-      return <Linkedin className="w-5 h-5" />;
+      return <FaLinkedin className="w-5 h-5" />;
     case 'youtube':
-      return <Youtube className="w-5 h-5" />;
+      return <FaYoutube className="w-5 h-5" />;
     case 'tiktok':
       return <span className="text-xs font-bold">TikTok</span>;
     case 'pinterest':

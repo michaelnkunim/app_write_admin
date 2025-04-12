@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -41,6 +42,7 @@ interface Listing {
   published: boolean;
   views: number;
   commentCount?: number;
+  propertyType: string;
   host: {
     id: string;
     name: string;
@@ -53,6 +55,12 @@ interface Listing {
   };
   createdAt: string;
   updatedAt: string;
+}
+
+interface Comment {
+  id: string;
+  comment: string;
+  createdAt: string;
 }
 
 export default function MyListingsPage() {
@@ -71,7 +79,7 @@ export default function MyListingsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 3;
   const [isCommentModalOpen, setIsCommentModalOpen] = useState(false);
-  const [comments, setComments] = useState<any[]>([]);
+  const [comments, setComments] = useState<Comment[]>([]);
   const [loadingComments, setLoadingComments] = useState(false);
 
   const fetchCommentCount = async (listingId: string) => {
@@ -156,6 +164,7 @@ export default function MyListingsPage() {
           status: data.status || 'active',
           published: data.published ?? false,
           views: data.views || 0,
+          propertyType: data.propertyType || '',
           host: {
             id: data.host?.id || user.uid,
             name: data.host?.name || user.displayName || '',

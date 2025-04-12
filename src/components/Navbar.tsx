@@ -1,18 +1,14 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useFavorites } from '@/context/FavoritesContext';
 import { useProfile } from '@/context/ProfileContext';
 import { useUnreadCount } from "@/context/UnreadCountContext";
 import { useLanguage } from '@/context/LanguageContext';
 import { 
-  MagnifyingGlassIcon, 
   UserCircleIcon,
-  HeartIcon,
   PlusIcon,
   ChatBubbleLeftIcon as MessageSquare,
   GlobeAltIcon,
@@ -27,7 +23,6 @@ import LanguageModal from './LanguageModal';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
-  const { favorites, loading } = useFavorites();
   const { profilePhotoURL } = useProfile();
   const { labels } = useLanguage();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -204,7 +199,7 @@ export default function Navbar() {
               {user && profilePhotoURL ? (
                 <Image
                   src={profilePhotoURL}
-                  alt={user.displayName || 'User'}
+                  alt={user.displayName ?? 'User'}
                   width={32}
                   height={32}
                   className="rounded-full"

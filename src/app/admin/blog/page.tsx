@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
@@ -25,17 +25,26 @@ import { toast } from 'sonner';
 import { useAdminApp } from '@/context/AdminAppContext';
 import { useAppFirestore } from '@/hooks/useAppFirestore';
 import { 
-  collection, 
   addDoc, 
+  collection, 
+  deleteDoc,
   doc, 
-  setDoc,
   updateDoc, 
-  deleteDoc, 
-  orderBy, 
-  serverTimestamp,
-  Timestamp 
+  getDoc, 
+  Timestamp, 
+  orderBy,
+  setDoc,
+  serverTimestamp
 } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
+import { 
+  getStorage, 
+  ref, 
+  uploadBytesResumable, 
+  getDownloadURL, 
+  deleteObject, 
+  UploadTaskSnapshot 
+} from 'firebase/storage';
+import { FirebaseApp } from 'firebase/app';
 import Cropper from 'react-easy-crop';
 import getCroppedImg from '@/utils/cropImage';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -387,24 +396,7 @@ export default function BlogEditor() {
     confirmButtonClass: 'bg-secondary hover:bg-secondary/90 text-secondary-foreground'
   });
 
-  // Get blog posts and settings on load
-  useEffect(() => {
-    // Only redirect if authentication is complete and user is not an admin
-    if (!authLoading) {
-      if (user?.isAdmin) {
-        fetchBlogPosts();
-        fetchBlogSettings();
-      } else if (user === null) {
-        // User is not logged in
-        router.push('/login');
-      } else if (!user.isAdmin) {
-        // User is logged in but not an admin
-        router.push('/dashboard');
-      }
-    }
-  }, [user, authLoading, router]);
-
-  const fetchBlogPosts = async () => {
+  const fetchBlogPosts = useCallback(async () => {
     try {
       const posts = await queryCollection<BlogPost>('blogPosts', [orderBy('createdAt', 'desc')]);
       setBlogPosts(posts);
@@ -412,9 +404,9 @@ export default function BlogEditor() {
       console.error('Error fetching blog posts:', error);
       toast.error('Failed to load blog posts');
     }
-  };
+  }, [queryCollection]);
 
-  const fetchBlogSettings = async () => {
+  const fetchBlogSettings = useCallback(async () => {
     try {
       const settingsDoc = await getDocument<BlogSettings>('settings', 'blogSettings');
       
@@ -430,7 +422,24 @@ export default function BlogEditor() {
       console.error('Error fetching blog settings:', error);
       toast.error('Failed to load blog settings');
     }
-  };
+  }, [getDocument]);
+
+  // Get blog posts and settings on load
+  useEffect(() => {
+    // Only redirect if authentication is complete and user is not an admin
+    if (!authLoading) {
+      if (user?.isAdmin) {
+        fetchBlogPosts();
+        fetchBlogSettings();
+      } else if (user === null) {
+        // User is not logged in
+        router.push('/login');
+      } else if (!user.isAdmin) {
+        // User is logged in but not an admin
+        router.push('/dashboard');
+      }
+    }
+  }, [user, authLoading, router, fetchBlogPosts, fetchBlogSettings]);
 
   const saveBlogSettings = async () => {
     if (!user?.isAdmin) return;
@@ -533,10 +542,10 @@ export default function BlogEditor() {
     setTitle(post.title);
     setContent(post.content);
     setCategory(post.category);
-    setTags(post.tags || []);
-    setImageUrl(post.imageUrl || '');
-    setGalleryImages(post.galleryImages || []);
-    setContentType(post.contentType || 'article');
+    setTags(post.tags ?? []);
+    setImageUrl(post.imageUrl ?? '');
+    setGalleryImages(post.galleryImages ?? []);
+    setContentType(post.contentType ?? 'article');
     setEditMode(true);
     setEditId(post.id);
   };
@@ -631,57 +640,7 @@ export default function BlogEditor() {
     setCroppedAreaPixels(croppedAreaPixels);
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          setImageSrc(reader.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   // Upload image to Firebase Storage
-  const uploadImageToStorage = async (
-    file: File | Blob, 
-    path: string, 
-    onProgress?: (progress: number) => void
-  ): Promise<string> => {
-    if (!user || !appFirebase) throw new Error('User not authenticated or Firebase not initialized');
-    
-    const fileName = `${Date.now()}-${file instanceof File ? file.name : 'image.jpg'}`;
-    const storageRef = ref(appFirebase.storage, `blog/${user.uid}/${path}/${fileName}`);
-    
-    try {
-      const uploadTask = uploadBytesResumable(storageRef, file);
-      
-      return new Promise((resolve, reject) => {
-        uploadTask.on(
-          'state_changed',
-          (snapshot) => {
-            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-            if (onProgress) onProgress(progress);
-          },
-          (error) => {
-            console.error('Error uploading image:', error);
-            reject(error);
-          },
-          async () => {
-            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
-            resolve(downloadURL);
-          }
-        );
-      });
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      throw error;
-    }
-  };
-
-  // Convert data URL to Blob for upload
   const dataURLtoBlob = (dataURL: string): Blob => {
     try {
       // Check if input is a data URL
@@ -723,6 +682,64 @@ export default function BlogEditor() {
     }
   };
 
+  const handleImageUpload = async (file: File): Promise<string> => {
+    try {
+      setLoading(true);
+      if (!appFirebase || !user) {
+        throw new Error('Firebase app not initialized or user not authenticated');
+      }
+      const storage = getStorage(appFirebase as unknown as FirebaseApp);
+      const fileName = `${Date.now()}-${file.name}`;
+      const storageRef = ref(storage, `blog/${user.uid}/featured/${fileName}`);
+      
+      const uploadTask = uploadBytesResumable(storageRef, file);
+      
+      return new Promise((resolve, reject) => {
+        uploadTask.on(
+          'state_changed',
+          (snapshot: UploadTaskSnapshot) => {
+            const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+            console.log(`Upload progress: ${progress}%`);
+          },
+          (error: Error) => {
+            console.error('Error uploading image:', error);
+            reject(error);
+          },
+          async () => {
+            const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+            resolve(downloadURL);
+          }
+        );
+      });
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleImageDelete = async () => {
+    try {
+      setLoading(true);
+      if (!appFirebase) {
+        throw new Error('Firebase app not initialized');
+      }
+      if (imageUrl && imageUrl.includes('firebase')) {
+        const storage = getStorage(appFirebase as unknown as FirebaseApp);
+        const imageRef = ref(storage, imageUrl);
+        await deleteObject(imageRef);
+      }
+      setImageUrl('');
+      toast.success('Featured image deleted!');
+    } catch (error) {
+      console.error('Error deleting image:', error);
+      toast.error('Failed to delete image');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCropSave = async () => {
     try {
       setLoading(true);
@@ -754,19 +771,11 @@ export default function BlogEditor() {
       }
       
       // Upload the Blob to Firebase Storage
-      const uploadedImageUrl = await uploadImageToStorage(imageBlob, 'featured', (progress) => {
-        // You could track progress here if needed
-        console.log(`Upload progress: ${progress}%`);
-      });
+      const uploadedImageUrl = await handleImageUpload(new File([imageBlob], "image.jpg", { type: imageBlob.type }));
       
       // Delete the old image if it exists and isn't the default
       if (imageUrl && imageUrl.includes('firebase') && editMode) {
-        try {
-          const oldImageRef = ref(appFirebase.storage, imageUrl);
-          await deleteObject(oldImageRef);
-        } catch (error) {
-          console.log('Error deleting old image or image not found:', error);
-        }
+        await handleImageDelete();
       }
       
       // Set the URL from Firebase
@@ -810,16 +819,7 @@ export default function BlogEditor() {
     for (const item of newUploads) {
       try {
         // Upload directly to Firebase Storage
-        const uploadedImageUrl = await uploadImageToStorage(
-          item.file, 
-          'gallery',
-          (progress) => {
-            // Update progress for this file
-            setGalleryUploadProgress(prev => 
-              prev.map(upload => upload.file === item.file ? { ...upload, progress } : upload)
-            );
-          }
-        );
+        const uploadedImageUrl = await handleImageUpload(item.file);
         
         // Add to gallery images
         setGalleryImages(prev => [...prev, uploadedImageUrl]);
@@ -877,16 +877,7 @@ export default function BlogEditor() {
     for (const item of newUploads) {
       try {
         // Upload directly to Firebase Storage
-        const uploadedImageUrl = await uploadImageToStorage(
-          item.file, 
-          'gallery',
-          (progress) => {
-            // Update progress for this file
-            setGalleryUploadProgress(prev => 
-              prev.map(upload => upload.file === item.file ? { ...upload, progress } : upload)
-            );
-          }
-        );
+        const uploadedImageUrl = await handleImageUpload(item.file);
         
         // Add to gallery images
         setGalleryImages(prev => [...prev, uploadedImageUrl]);
@@ -909,7 +900,8 @@ export default function BlogEditor() {
     // If it's a Firebase Storage URL, delete from storage too
     if (imageUrl && imageUrl.includes('firebase')) {
       try {
-        const imageRef = ref(appFirebase.storage, imageUrl);
+        const storage = getStorage(appFirebase as unknown as FirebaseApp);
+        const imageRef = ref(storage, imageUrl);
         await deleteObject(imageRef);
       } catch (error) {
         console.log('Error deleting image or image not found:', error);
@@ -1071,7 +1063,18 @@ export default function BlogEditor() {
                           <input
                             type="file"
                             accept="image/*"
-                            onChange={handleImageUpload}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = () => {
+                                  if (reader.result) {
+                                    setImageSrc(reader.result as string);
+                                  }
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
                             className="sr-only"
                           />
                         </label>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile, updateUserProfile, uploadProfilePhoto, uploadBannerPhoto, IdVerificationStatus } from '@/lib/userProfile';
 import { toast } from 'sonner';
@@ -40,7 +40,7 @@ const PROFILE_WEIGHTS: ProfileFieldWeight[] = [
   { field: 'whatsapp', weight: 10, label: 'WhatsApp Number' }
 ];
 
-function ProfileCompletionBar({ formData, photoURL }: { formData: FormData; photoURL: string }) {
+function ProfileCompletionBar({ formData, photoURL }: { readonly formData: FormData; readonly photoURL: string }) {
   const [showIncomplete, setShowIncomplete] = useState(false);
   
   const calculateProgress = () => {
@@ -117,7 +117,7 @@ function ProfileCompletionBar({ formData, photoURL }: { formData: FormData; phot
 export default function AccountPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const activeTab = searchParams.get('tab') || 'account';
+  const activeTab = searchParams.get('tab') ?? 'account';
   
   const { user, changePassword, resendVerificationEmail } = useAuth();
   const { updateProfilePhoto } = useProfile();
@@ -157,17 +157,7 @@ export default function AccountPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [isResendingVerification, setIsResendingVerification] = useState(false);
 
-  useEffect(() => {
-    if (user) {
-      loadUserProfile();
-    }
-  }, [user]);
-
-  const navigateToTab = (tab: string) => {
-    router.push(`/account?tab=${tab}`);
-  };
-
-  const loadUserProfile = async () => {
+  const loadUserProfile = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -195,6 +185,16 @@ export default function AccountPage() {
       console.error('Error loading profile:', error);
       toast.error('Failed to load profile');
     }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      loadUserProfile();
+    }
+  }, [user, loadUserProfile]);
+
+  const navigateToTab = (tab: string) => {
+    router.push(`/account?tab=${tab}`);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

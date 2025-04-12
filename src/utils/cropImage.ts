@@ -1,4 +1,11 @@
-export default async function getCroppedImg(imageSrc: string, pixelCrop: any) {
+interface PixelCrop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export default async function getCroppedImg(imageSrc: string, pixelCrop: PixelCrop) {
   const image = new Image();
   image.src = imageSrc;
   
@@ -37,7 +44,7 @@ export default async function getCroppedImg(imageSrc: string, pixelCrop: any) {
     try {
       const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
       resolve(dataUrl);
-    } catch (err) {
+    } catch {
       reject(new Error('Failed to create data URL from canvas'));
     }
   });

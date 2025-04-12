@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { MagnifyingGlassIcon, ChevronLeftIcon, XMarkIcon } from '@heroicons/react/24/outline';
 import { searchIndex } from '@/lib/algolia';
 import { useLanguage } from '@/context/LanguageContext';
+import Image from 'next/image';
 
 interface SearchResultsPopupProps {
   onClose: () => void;
@@ -146,10 +147,12 @@ export default function SearchResultsPopup({
                           }}
                           className="flex items-center space-x-4 p-2 rounded-lg cursor-pointer hover:bg-accent/80"
                         >
-                          <img
+                          <Image
                             src={hit.image}
                             alt={hit.title}
-                            className="h-12 w-12 object-cover rounded-lg"
+                            className="object-cover rounded-lg"
+                            width={48}
+                            height={48}
                           />
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">

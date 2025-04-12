@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { collection, query, where, orderBy, limit, getDocs, startAfter, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
@@ -16,14 +16,13 @@ interface BlogPost {
   tags: string[];
   imageUrl?: string;
   contentType: 'article' | 'page';
-  createdAt: any;
-  updatedAt: any;
+  createdAt: { toDate: () => Date };
+  updatedAt: { toDate: () => Date };
 }
 
 export default function BlogPage() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
@@ -33,48 +32,7 @@ export default function BlogPage() {
   
   const POSTS_PER_PAGE = 6;
   
-  useEffect(() => {
-    fetchPosts();
-    fetchCategoriesAndTags();
-  }, [activeCategory, activeTag]);
-  
-  const fetchCategoriesAndTags = async () => {
-    try {
-      const postsRef = collection(db, 'blogPosts');
-      const postsSnap = await getDocs(query(
-        postsRef, 
-        where('contentType', '==', 'article')
-      ));
-      
-      const allCategories = new Set<string>();
-      const tagCounts: Record<string, number> = {};
-      
-      postsSnap.forEach(doc => {
-        const data = doc.data();
-        if (data.category) allCategories.add(data.category);
-        
-        if (data.tags && Array.isArray(data.tags)) {
-          data.tags.forEach((tag: string) => {
-            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-          });
-        }
-      });
-      
-      setCategories(Array.from(allCategories));
-      
-      // Get top 10 tags
-      const sortedTags = Object.entries(tagCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(entry => entry[0]);
-        
-      setPopularTags(sortedTags);
-    } catch (err) {
-      console.error('Error fetching categories and tags:', err);
-    }
-  };
-  
-  const fetchPosts = async (loadMore = false) => {
+  const fetchPosts = useCallback(async (loadMore = false) => {
     try {
       setLoading(true);
       
@@ -133,9 +91,49 @@ export default function BlogPage() {
       setPosts(prev => loadMore ? [...prev, ...filteredPosts] : filteredPosts);
     } catch (err) {
       console.error('Error fetching blog posts:', err);
-      setError('Failed to load blog posts');
     } finally {
       setLoading(false);
+    }
+  }, [activeCategory, lastVisible, activeTag]);
+
+  useEffect(() => {
+    fetchPosts();
+    fetchCategoriesAndTags();
+  }, [fetchPosts]);
+  
+  const fetchCategoriesAndTags = async () => {
+    try {
+      const postsRef = collection(db, 'blogPosts');
+      const postsSnap = await getDocs(query(
+        postsRef, 
+        where('contentType', '==', 'article')
+      ));
+      
+      const allCategories = new Set<string>();
+      const tagCounts: Record<string, number> = {};
+      
+      postsSnap.forEach(doc => {
+        const data = doc.data();
+        if (data.category) allCategories.add(data.category);
+        
+        if (data.tags && Array.isArray(data.tags)) {
+          data.tags.forEach((tag: string) => {
+            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+          });
+        }
+      });
+      
+      setCategories(Array.from(allCategories));
+      
+      // Get top 10 tags
+      const sortedTags = Object.entries(tagCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(entry => entry[0]);
+        
+      setPopularTags(sortedTags);
+    } catch (err) {
+      console.error('Error fetching categories and tags:', err);
     }
   };
   
@@ -148,21 +146,6 @@ export default function BlogPage() {
   const clearFilters = () => {
     setActiveCategory(null);
     setActiveTag(null);
-  };
-  
-  // Extract a short excerpt from content
-  const getExcerpt = (content: string, maxLength = 150) => {
-    // Remove markdown formatting
-    const plainText = content
-      .replace(/#{1,6}\s+/g, '') // Remove headings
-      .replace(/\*\*(.*?)\*\*/g, '$1') // Remove bold
-      .replace(/\*(.*?)\*/g, '$1') // Remove italic
-      .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Remove links
-      .replace(/^\- /gm, ''); // Remove list items
-      
-    if (plainText.length <= maxLength) return plainText;
-    
-    return plainText.substring(0, maxLength) + '...';
   };
   
   return (

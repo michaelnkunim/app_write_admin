@@ -44,8 +44,8 @@ interface BlogPost {
   tags: string[];
   imageUrl?: string;
   contentType: 'article' | 'page';
-  createdAt: any;
-  updatedAt: any;
+  createdAt: { toDate?: () => Date } | string;
+  updatedAt: { toDate?: () => Date } | string;
 }
 
 // Related post card component
@@ -76,7 +76,7 @@ const RelatedPostCard = ({ post }: { post: BlogPost }) => {
           <div className="mt-1 flex items-center text-xs text-muted-foreground">
             <ClockIcon className="w-3 h-3 mr-1" />
             <span>
-              {post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString() : ''}
+              {typeof post.createdAt !== 'string' && post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString() : ''}
             </span>
           </div>
         )}
@@ -250,7 +250,7 @@ export default function BlogPostPage() {
                 {post.createdAt && (
                   <span className="flex items-center">
                     <CalendarIcon className="w-4 h-4 mr-1" />
-                    {post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString() : ''}
+                    {typeof post.createdAt !== 'string' && post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString() : ''}
                   </span>
                 )}
                 

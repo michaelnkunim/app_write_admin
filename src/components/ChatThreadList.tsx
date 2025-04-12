@@ -3,6 +3,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ChatThread } from '@/types/chat';
 import { subscribeToUserThreads } from '@/lib/chat';
 import { useAuth } from '@/context/AuthContext';
+import Image from 'next/image';
 
 interface ChatThreadListProps {
   onSelectThread: (thread: ChatThread) => void;
@@ -70,12 +71,14 @@ export default function ChatThreadList({ onSelectThread, selectedThreadId }: Cha
             >
               <div className="flex items-center gap-3">
                 <div className="relative h-12 w-12 rounded-full overflow-hidden flex-shrink-0">
-                  <img
+                  <Image
                     src={otherParticipant?.photoURL || '/default-avatar.svg'}
                     alt={otherParticipant?.name}
                     className="object-cover"
+                    width={48}
+                    height={48}
+                    style={{ width: '100%', height: '100%' }}
                   />
-
                 </div>
                 <div className="flex-1 min-w-0 relative">
                   <div className="flex items-center justify-between">

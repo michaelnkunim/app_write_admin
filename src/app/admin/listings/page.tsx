@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { collection, getDocs, query, where, orderBy, limit, startAfter, QueryDocumentSnapshot, DocumentData, doc, updateDoc, addDoc, deleteDoc, getDoc, setDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, limit, startAfter, QueryDocumentSnapshot, DocumentData, doc, updateDoc, addDoc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { HomeIcon, Search, Filter, PlusCircle, Eye, Edit, Trash2, MessageSquare, EyeOff, CheckCircle, X } from 'lucide-react';
 import { toast } from 'sonner';
@@ -28,7 +28,7 @@ interface Listing {
   location: string;
   price: string;
   status: 'active' | 'frozen' | 'pending';
-  category: any; // Using any to resolve TypeScript error with array access
+  category: { key: string; label: string; title?: string; }[]; // Add optional title for backward compatibility
   ownerId?: string;
   ownerName?: string;
   commentCount?: number;
@@ -39,7 +39,7 @@ interface Comment {
   id: string;
   listingId: string;
   comment: string;
-  createdBy: string;
+  createdBy: string | undefined; // Allow undefined for createdBy
   createdAt: string;
   updatedAt?: string;
 }
@@ -62,7 +62,7 @@ export default function ListingsAdminPage() {
   const [comment, setComment] = useState('');
   const [newStatus, setNewStatus] = useState<'active' | 'frozen' | 'pending'>('active');
   const listingsPerPage = 5; // Changed to 5 items per page
-  const [listingComments, setListingComments] = useState<any[]>([]);
+  const [listingComments, setListingComments] = useState<Comment[]>([]); // Specify Comment[] type
   const [loadingComments, setLoadingComments] = useState(false);
   const [commentPage, setCommentPage] = useState(1);
   const commentsPerPage = 5;
@@ -70,45 +70,8 @@ export default function ListingsAdminPage() {
   const [editedCommentText, setEditedCommentText] = useState('');
   const [deletingComment, setDeletingComment] = useState<string | null>(null);
 
-  // Redirect non-admin users
-  useEffect(() => {
-    if (!user || !user.isAdmin) {
-      router.push('/login');
-    }
-  }, [user, router]);
-
-  // Load initial data
-  useEffect(() => {
-    if (user?.isAdmin) {
-      fetchListings(categories[0]);
-    }
-  }, [user]);
-
-  // Fetch comment count for a listing
-  const fetchCommentCount = async (listingId: string) => {
-    try {
-      console.log(`Fetching comment count for listing ${listingId}`);
-      
-      // Get the comments document for this listing
-      const commentsDoc = await getDoc(doc(db, 'listingComments', listingId));
-      
-      if (commentsDoc.exists()) {
-        const commentsData = commentsDoc.data();
-        const commentsArray = commentsData.comments || [];
-        console.log(`Found ${commentsArray.length} comments for listing ${listingId}`);
-        return commentsArray.length;
-      } else {
-        console.log(`No comments document found for listing ${listingId}`);
-        return 0;
-      }
-    } catch (error) {
-      console.error(`Error fetching comment count for listing ${listingId}:`, error);
-      return 0;
-    }
-  };
-
-  // Fetch listings from Firestore
-  const fetchListings = async (category: Category = categories[0]) => {
+  // Fetch listings from Firestore - Make it a useCallback so it can be used in useEffect
+  const fetchListings = useCallback(async (category: Category = categories[0]) => {
     setLoading(true);
     try {
       let listingsQuery = query(
@@ -152,6 +115,43 @@ export default function ListingsAdminPage() {
       console.error('Error fetching listings:', error);
     } finally {
       setLoading(false);
+    }
+  }, []);
+
+  // Redirect non-admin users
+  useEffect(() => {
+    if (!user || !user.isAdmin) {
+      router.push('/login');
+    }
+  }, [user, router]);
+
+  // Load initial data
+  useEffect(() => {
+    if (user?.isAdmin) {
+      fetchListings(categories[0]);
+    }
+  }, [user, fetchListings]);
+
+  // Fetch comment count for a listing
+  const fetchCommentCount = async (listingId: string) => {
+    try {
+      console.log(`Fetching comment count for listing ${listingId}`);
+      
+      // Get the comments document for this listing
+      const commentsDoc = await getDoc(doc(db, 'listingComments', listingId));
+      
+      if (commentsDoc.exists()) {
+        const commentsData = commentsDoc.data();
+        const commentsArray = commentsData.comments || [];
+        console.log(`Found ${commentsArray.length} comments for listing ${listingId}`);
+        return commentsArray.length;
+      } else {
+        console.log(`No comments document found for listing ${listingId}`);
+        return 0;
+      }
+    } catch (error) {
+      console.error(`Error fetching comment count for listing ${listingId}:`, error);
+      return 0;
     }
   };
 
@@ -408,11 +408,11 @@ export default function ListingsAdminPage() {
     if (!selectedListing || !comment.trim()) return;
 
     try {
-      const newComment = {
+      const newComment: Comment = {
         id: `comment_${Date.now()}`, // Generate a unique ID
         listingId: selectedListing.id,
         comment: comment,
-        createdBy: user?.uid,
+        createdBy: user?.uid || 'unknown', // Provide a fallback value
         createdAt: new Date().toISOString()
       };
       
@@ -619,7 +619,7 @@ export default function ListingsAdminPage() {
       
       if (commentsDoc.exists()) {
         const commentsData = commentsDoc.data();
-        let commentsArray = commentsData.comments || [];
+        const commentsArray = commentsData.comments || [];
         
         // Filter out the comment to be deleted
         const updatedComments = commentsArray.filter((comment: Comment) => comment.id !== commentId);
@@ -736,7 +736,7 @@ export default function ListingsAdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {listings.map((listing:any) => (
+                  {listings.map((listing: Listing) => (
                     <tr key={listing.id} className="border-b hover:bg-accent/10">
                       <td className="px-4 py-3">
                         <input
@@ -747,7 +747,7 @@ export default function ListingsAdminPage() {
                       </td>
                       <td className="px-4 py-3">{listing.title}</td>
                       <td className="px-4 py-3">
-                        {listing?.category?.[0]?.title || 'Uncategorized'}
+                        {listing?.category?.[0]?.title || listing?.category?.[0]?.label || 'Uncategorized'}
                       </td>
                       <td className="px-4 py-3">{listing.location}</td>
                       <td className="px-4 py-3">{listing.price}</td>
@@ -778,7 +778,7 @@ export default function ListingsAdminPage() {
                             onClick={() => handleAddComment(listing)}
                           >
                             <MessageSquare size={18} />
-                            {listing.commentCount > 0 && (
+                            {(listing.commentCount && listing.commentCount > 0) && (
                               <span className="absolute -top-2 -right-2 bg-purple-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                                 {listing.commentCount > 9 ? '9+' : listing.commentCount}
                               </span>

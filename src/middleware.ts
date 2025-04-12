@@ -14,11 +14,11 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
 
   // Public paths that don't require authentication
-  const publicPaths = ['/login', '/signup', '/onboarding', '/listing','page1', 'page2', 'page3', 'page4', 'page5'];
+  const publicPaths = ['/','/login', '/signup', '/onboarding', '/listing'];
   
   // Check if the path is public
   const isPublicPath = publicPaths.some(publicPath => 
-    path.includes(publicPath) || path.startsWith('/images/') || path.startsWith('/_next/')
+    path.includes(publicPath) ?? path.startsWith('/images/') ?? path.startsWith('/_next/')
   );
 
   // If there's no token and the path isn't public, redirect to login
@@ -27,9 +27,9 @@ export async function middleware(request: NextRequest) {
   }
 
   //If there's a token and we're on a public path, redirect to dashboard
-  if (token && publicPaths.includes(path)) {
-    return NextResponse.redirect(new URL('/admin/apps', request.url));
-  }
+  // if (token && publicPaths.includes(path)) {
+  //   return NextResponse.redirect(new URL('/admin/apps', request.url));
+  // }
 
   return NextResponse.next();
 }

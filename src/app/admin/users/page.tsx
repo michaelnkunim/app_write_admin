@@ -1,4 +1,4 @@
-'use client';
+/* eslint-disable react-hooks/exhaustive-deps */
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
@@ -25,6 +25,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { where, orderBy, limit, startAfter } from 'firebase/firestore';
+import Image from 'next/image';
 
 // User type definition
 interface UserData {
@@ -56,6 +57,72 @@ interface Toast {
   type: ToastType;
   message: string;
 }
+
+// Add these helper functions before the component
+const getVerificationButtonStyle = (status: string, hasDocs: boolean) => {
+  if (status === 'approved') {
+    return 'text-green-500 hover:text-red-700';
+  }
+  if (!hasDocs) {
+    return 'text-gray-400 cursor-not-allowed';
+  }
+  return 'text-green-500 hover:text-green-700';
+};
+
+const getVerificationButtonTitle = (status: string, hasDocs: boolean) => {
+  if (status === 'approved') {
+    return 'Revoke ID Verification';
+  }
+  if (!hasDocs) {
+    return 'ID Documents Incomplete';
+  }
+  return 'Approve ID Verification';
+};
+
+const getUserStatusStyles = (status?: string): string => {
+  if (status === 'banned') {
+    return 'bg-red-100 text-red-800';
+  } else if (status === 'inactive') {
+    return 'bg-yellow-100 text-yellow-800';
+  } else {
+    return 'bg-gg-100 text-green-800';
+  }
+};
+
+const getVerificationStatusStyles = (status?: string): string => {
+  switch (status) {
+    case 'approved':
+      return 'bg-green-100 text-green-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+};
+
+const getVerificationStatusText = (status?: string): string => {
+  if (status === 'none' || !status) {
+    return 'Not Submitted';
+  }
+  return status.charAt(0).toUpperCase() + status.slice(1);
+};
+
+// Add these helper functions before the component to extract nested ternaries
+const getBanButtonStyle = (status?: string): string => {
+  return status === 'banned' 
+    ? 'text-green-500 hover:text-green-700' 
+    : 'text-red-500 hover:text-red-700';
+};
+
+const getPaginationButtonStyle = (isDisabled: boolean): string => {
+  return `flex items-center gap-1 px-3 py-1 border rounded-md transition-colors ${
+    isDisabled
+      ? 'text-gray-400 cursor-not-allowed'
+      : 'hover:bg-accent'
+  }`;
+};
 
 export default function UsersAdminPage() {
   const { user } = useAuth();
@@ -92,7 +159,7 @@ export default function UsersAdminPage() {
 
   // Redirect non-admin users
   useEffect(() => {
-    if (!user || !user.isAdmin) {
+    if (!user?.isAdmin) {
       router.push('/login');
     }
   }, [user, router]);
@@ -235,9 +302,9 @@ export default function UsersAdminPage() {
       
       if (allUsers.length > 0) {
         const filteredUsers = allUsers.filter(user => 
-          user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.displayName?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ??
+          user.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ??
           user.location?.toLowerCase().includes(searchTerm.toLowerCase())
         );
         
@@ -275,7 +342,7 @@ export default function UsersAdminPage() {
     if (!creditUserId || !creditAmount.trim()) return;
     
     const amount = parseFloat(creditAmount);
-    if (isNaN(amount) || amount <= 0) {
+    if (isNaN(amount) ?? amount <= 0) {
       showToast('error', 'Please enter a valid positive number');
       return;
     }
@@ -286,7 +353,7 @@ export default function UsersAdminPage() {
       const balanceDoc = await getDocument('balances', creditUserId);
       
       if (balanceDoc) {
-        const currentBalance = balanceDoc.currentBalance || 0;
+        const currentBalance = balanceDoc.currentBalance ?? 0;
         await updateDocument('balances', creditUserId, {
           currentBalance: currentBalance + amount,
           updatedAt: new Date().toISOString()
@@ -464,8 +531,8 @@ export default function UsersAdminPage() {
     }
     
     const filtered = users.filter(user => 
-      user.displayName?.toLowerCase().includes(term.toLowerCase()) ||
-      user.email?.toLowerCase().includes(term.toLowerCase()) ||
+      user.displayName?.toLowerCase().includes(term.toLowerCase()) ??
+      user.email?.toLowerCase().includes(term.toLowerCase()) ??
       user.businessName?.toLowerCase().includes(term.toLowerCase())
     );
     
@@ -623,44 +690,23 @@ export default function UsersAdminPage() {
                   {users.length > 0 ? (
                     users.map((user) => (
                       <tr key={user.id} className="border-b hover:bg-accent/10">
-                        <td className="px-4 py-3">{user.businessName || user.username || user.displayName || 'N/A'}</td>
-                        <td className="px-4 py-3">{user.email || 'N/A'}</td>
-                        <td className="px-4 py-3 capitalize">{user.userType || 'N/A'}</td>
+                        <td className="px-4 py-3">{user.businessName ?? user.username ?? user.displayName ?? 'N/A'}</td>
+                        <td className="px-4 py-3">{user.email ?? 'N/A'}</td>
+                        <td className="px-4 py-3 capitalize">{user.userType ?? 'N/A'}</td>
                         <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs ${
-                            user.status === 'banned' 
-                              ? 'bg-red-100 text-red-800' 
-                              : user.status === 'inactive'
-                              ? 'bg-yellow-100 text-yellow-800'
-                              : 'bg-gg-100 text-green-800'
-                          }`}>
-                            {user.status || 'Active'}
+                          <span className={`px-2 py-1 rounded-full text-xs ${getUserStatusStyles(user.status)}`}>
+                            {user.status ?? 'Active'}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {user.idVerificationStatus ? (
-                            <span className={`px-2 py-1 rounded-full text-xs ${
-                              user.idVerificationStatus === 'approved'
-                                ? 'bg-green-100 text-green-800' 
-                                : user.idVerificationStatus === 'rejected'
-                                ? 'bg-red-100 text-red-800'
-                                : user.idVerificationStatus === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {user.idVerificationStatus === 'none' ? 'Not Submitted' : 
-                               user.idVerificationStatus.charAt(0).toUpperCase() + user.idVerificationStatus.slice(1)}
-                            </span>
-                          ) : (
-                            <span className="px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800">
-                              Not Submitted
-                            </span>
-                          )}
+                          <span className={`px-2 py-1 rounded-full text-xs ${getVerificationStatusStyles(user.idVerificationStatus)}`}>
+                            {getVerificationStatusText(user.idVerificationStatus)}
+                          </span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2">
                             <button 
-                              onClick={() => handleCreditAccount(user.id, user.displayName || user.businessName || user.email)}
+                              onClick={() => handleCreditAccount(user.id, user.displayName ?? user.businessName ?? user.email)}
                               className="text-blue-500 hover:text-blue-700 p-1"
                               title="Credit Account"
                             >
@@ -669,34 +715,31 @@ export default function UsersAdminPage() {
                             <button 
                               onClick={() => handleBanUser(
                                 user.id, 
-                                user.displayName || user.businessName || user.email, 
-                                user.status || 'active'
+                                user.displayName ?? user.businessName ?? user.email, 
+                                user.status ?? 'active'
                               )}
-                              className={`p-1 ${
-                                user.status === 'banned' 
-                                  ? 'text-green-500 hover:text-green-700' 
-                                  : 'text-red-500 hover:text-red-700'
-                              }`}
+                              className={`p-1 ${getBanButtonStyle(user.status)}`}
                               title={user.status === 'banned' ? 'Unban User' : 'Ban User'}
                             >
                               <Ban size={18} />
                             </button>
                             <button 
                               onClick={() => handleIdVerification(user)}
-                              disabled={user.idVerificationStatus !== 'approved' && (!user.idFrontURL || !user.idBackURL)}
+                              disabled={getVerificationButtonStyle(
+                                user.idVerificationStatus || 'none',
+                                !!(user.idFrontURL && user.idBackURL)
+                              ) === 'text-gray-400 cursor-not-allowed'}
                               className={`p-1 ${
-                                user.idVerificationStatus === 'approved'
-                                  ? 'text-green-500 hover:text-red-700'
-                                  : (!user.idFrontURL || !user.idBackURL)
-                                  ? 'text-gray-400 cursor-not-allowed'
-                                  : 'text-green-500 hover:text-green-700'
+                                getVerificationButtonStyle(
+                                  user.idVerificationStatus || 'none',
+                                  !!(user.idFrontURL && user.idBackURL)
+                                )
                               }`}
                               title={
-                                user.idVerificationStatus === 'approved'
-                                  ? 'Revoke ID Verification'
-                                  : (!user.idFrontURL || !user.idBackURL)
-                                  ? 'ID Documents Incomplete'
-                                  : 'Approve ID Verification'
+                                getVerificationButtonTitle(
+                                  user.idVerificationStatus || 'none',
+                                  !!(user.idFrontURL && user.idBackURL)
+                                )
                               }
                             >
                               {user.idVerificationStatus === 'approved' ? (
@@ -740,11 +783,7 @@ export default function UsersAdminPage() {
               </p>
               <div className="flex gap-2">
                 <button 
-                  className={`flex items-center gap-1 px-3 py-1 border rounded-md transition-colors ${
-                    currentPage <= 1 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : 'hover:bg-accent'
-                  }`}
+                  className={getPaginationButtonStyle(currentPage <= 1)}
                   onClick={handlePrevPage}
                   disabled={currentPage <= 1}
                 >
@@ -752,11 +791,7 @@ export default function UsersAdminPage() {
                   <span>Previous</span>
                 </button>
                 <button 
-                  className={`flex items-center gap-1 px-3 py-1 border rounded-md transition-colors ${
-                    currentPage >= totalPages 
-                      ? 'text-gray-400 cursor-not-allowed' 
-                      : 'hover:bg-accent'
-                  }`}
+                  className={getPaginationButtonStyle(currentPage >= totalPages)}
                   onClick={handleNextPage}
                   disabled={currentPage >= totalPages}
                 >
@@ -782,7 +817,7 @@ export default function UsersAdminPage() {
             {/* User Selection Section */}
             <div className="mb-4">
               <div className="flex justify-between items-center">
-                <label className="block text-sm font-medium mb-2">Recipients</label>
+                <label htmlFor="recipients" className="block text-sm font-medium mb-2">Recipients</label>
                 <button 
                   onClick={() => setShowUserSelector(!showUserSelector)}
                   className="text-sm text-primary hover:underline"
@@ -799,7 +834,7 @@ export default function UsersAdminPage() {
                       key={user.id} 
                       className="flex items-center gap-1 bg-accent px-2 py-1 rounded-full text-xs"
                     >
-                      <span>{user.displayName || user.email}</span>
+                      <span>{user.displayName ?? user.email}</span>
                       <button 
                         onClick={() => toggleUserSelection(user)}
                         className="text-muted-foreground hover:text-foreground"
@@ -832,10 +867,18 @@ export default function UsersAdminPage() {
                         <div 
                           key={user.id}
                           onClick={() => toggleUserSelection(user)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              toggleUserSelection(user);
+                            }
+                          }}
+                          role="button"
+                          tabIndex={0}
                           className="flex items-center justify-between px-3 py-2 hover:bg-accent cursor-pointer border-b last:border-b-0"
                         >
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{user.displayName || 'N/A'}</p>
+                            <p className="font-medium truncate">{user.displayName ?? 'N/A'}</p>
                             <p className="text-xs text-muted-foreground truncate">{user.email}</p>
                           </div>
                           <div className={`w-5 h-5 rounded-sm border flex items-center justify-center ${
@@ -926,7 +969,7 @@ export default function UsersAdminPage() {
               </button>
               <button 
                 className={`px-4 py-2 rounded-md transition-colors ${
-                  selectedUsers.length > 0 && messageContent.trim() && messageTypes.length > 0
+                  selectedUsers.length > 0 && !!messageContent.trim() && messageTypes.length > 0
                     ? 'bg-primary text-primary-foreground hover:bg-primary/90'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                 }`}
@@ -1035,31 +1078,31 @@ export default function UsersAdminPage() {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Name</p>
-                <p className="font-medium">{selectedUser.displayName || 'N/A'}</p>
+                <p className="font-medium">{selectedUser.displayName ?? 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{selectedUser.email || 'N/A'}</p>
+                <p className="font-medium">{selectedUser.email ?? 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-medium">{selectedUser.phone || 'N/A'}</p>
+                <p className="font-medium">{selectedUser.phone ?? 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">User Type</p>
-                <p className="font-medium capitalize">{selectedUser.userType || 'N/A'}</p>
+                <p className="font-medium capitalize">{selectedUser.userType ?? 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Status</p>
-                <p className="font-medium capitalize">{selectedUser.status || 'Active'}</p>
+                <p className="font-medium capitalize">{selectedUser.status ?? 'Active'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Location</p>
-                <p className="font-medium">{selectedUser.location || 'N/A'}</p>
+                <p className="font-medium">{selectedUser.location ?? 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Business Name</p>
-                <p className="font-medium">{selectedUser.businessName || 'N/A'}</p>
+                <p className="font-medium">{selectedUser.businessName ?? 'N/A'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Created At</p>
@@ -1088,7 +1131,7 @@ export default function UsersAdminPage() {
             </div>
             
             {/* ID Images Section */}
-            {(selectedUser.idFrontURL || selectedUser.idBackURL) && (
+            {(selectedUser.idFrontURL ?? selectedUser.idBackURL) && (
               <div className="mt-6 border-t pt-4">
                 <h3 className="text-lg font-semibold mb-4">ID Verification Documents</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1096,9 +1139,11 @@ export default function UsersAdminPage() {
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">ID Front</p>
                       <div className="border rounded-md overflow-hidden">
-                        <img 
+                        <Image 
                           src={selectedUser.idFrontURL} 
                           alt="ID Front" 
+                          width={400}
+                          height={200}
                           className="w-full object-contain"
                           style={{ maxHeight: '200px' }}
                         />
@@ -1109,9 +1154,11 @@ export default function UsersAdminPage() {
                     <div>
                       <p className="text-sm text-muted-foreground mb-2">ID Back</p>
                       <div className="border rounded-md overflow-hidden">
-                        <img 
+                        <Image 
                           src={selectedUser.idBackURL} 
                           alt="ID Back" 
+                          width={400}
+                          height={200}
                           className="w-full object-contain"
                           style={{ maxHeight: '200px' }}
                         />

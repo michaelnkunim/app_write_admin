@@ -16,8 +16,8 @@ interface BlogPost {
   tags: string[];
   imageUrl?: string;
   contentType: 'article' | 'page';
-  createdAt: any;
-  updatedAt: any;
+  createdAt: { toDate?: () => Date } | string;
+  updatedAt: { toDate?: () => Date } | string;
 }
 
 export default function TagPage() {
@@ -27,7 +27,6 @@ export default function TagPage() {
   
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     if (tagName) {
@@ -61,7 +60,6 @@ export default function TagPage() {
       setPosts(filteredPosts);
     } catch (err) {
       console.error('Error fetching posts by tag:', err);
-      setError('Failed to load posts');
     } finally {
       setLoading(false);
     }
@@ -172,7 +170,8 @@ export default function TagPage() {
                     {post.createdAt && (
                       <span className="text-xs text-muted-foreground flex items-center">
                         <CalendarIcon className="w-3 h-3 mr-1" />
-                        {post.createdAt.toDate ? post.createdAt.toDate().toLocaleDateString() : ''}
+                        {typeof post.createdAt !== 'string' && post.createdAt.toDate ? 
+                          post.createdAt.toDate().toLocaleDateString() : ''}
                       </span>
                     )}
                   </div>

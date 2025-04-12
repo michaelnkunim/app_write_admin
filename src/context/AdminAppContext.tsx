@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
@@ -105,7 +106,7 @@ export const AdminAppProvider = ({ children }: { children: ReactNode }) => {
   // Effect to apply theme when selected app or theme mode changes
   useEffect(() => {
     const app = apps.find(a => a.id === selectedAppId);
-    if (app && app.theme) {
+    if (app?.theme) {
       // Apply the app's theme based on current theme mode
       const currentMode = theme === 'dark' ? 'dark' : 'light';
       applyAppTheme(app.theme, currentMode);

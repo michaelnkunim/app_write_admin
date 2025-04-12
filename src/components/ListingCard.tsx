@@ -1,19 +1,14 @@
 'use client';
 
-import { useState, useCallback, memo, useRef } from 'react';
+import { useState, useCallback, memo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline';
-import { HeartIcon } from '@heroicons/react/24/outline';
+import { ChevronLeftIcon, ChevronRightIcon, HeartIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid';
 import { useFavorites } from '@/context/FavoritesContext';
 import { useAuth } from '@/context/AuthContext';
 import { Listing } from '@/types/listing';
 import styles from './ListingCard.module.css';
-import { ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
-import { toast } from 'sonner';
-import { doc, setDoc, deleteDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
 
 interface ListingCardProps {
   listing: Listing;
@@ -35,8 +30,6 @@ const ListingCard = memo(function ListingCard({
   const { addToFavorites, removeFromFavorites, isFavorite } = useFavorites();
   const images = listing.images || [listing.image];
   const isListingFavorite = user ? isFavorite(listing.id) : false;
-  const [isChangingImage, setIsChangingImage] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleFavoriteClick = useCallback((e: React.MouseEvent) => {
     e.preventDefault();

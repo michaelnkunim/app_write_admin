@@ -6,7 +6,6 @@ import { ChatThread as ChatThreadType } from '@/types/chat';
 import ChatThreadList from '@/components/ChatThreadList';
 import ChatThread from '@/components/ChatThread';
 import { getChatThread } from '@/lib/chat';
-import { ArrowLeftIcon } from '@heroicons/react/24/outline';
 
 export default function ChatPage() {
   const router = useRouter();
@@ -48,10 +47,7 @@ export default function ChatPage() {
     }
   };
 
-  const handleBackToList = () => {
-    setSelectedThread(null);
-    router.push('/chat');
-  };
+
 
   // Mobile: Show either thread list or selected thread
   if (isMobile) {
@@ -67,7 +63,7 @@ export default function ChatPage() {
       <div className="h-[calc(100vh-4rem)] w-full overflow-hidden">
         <ChatThreadList
           onSelectThread={handleSelectThread}
-          selectedThreadId={selectedThread?.id}
+          selectedThreadId={selectedThread?.id as string | undefined}
         />
       </div>
     );
@@ -79,7 +75,7 @@ export default function ChatPage() {
       <div className="w-full max-w-sm border-r border-border overflow-hidden">
         <ChatThreadList
           onSelectThread={handleSelectThread}
-          selectedThreadId={selectedThread?.id}
+          selectedThreadId={selectedThread?.id as string | undefined}
         />
       </div>
       <div className="flex-1 overflow-hidden">

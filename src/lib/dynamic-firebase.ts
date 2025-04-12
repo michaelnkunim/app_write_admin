@@ -4,10 +4,6 @@ import {
   Firestore
 } from 'firebase/firestore';
 import { 
-  getAuth, 
-  Auth
-} from 'firebase/auth';
-import { 
   getStorage, 
   FirebaseStorage
 } from 'firebase/storage';

@@ -46,6 +46,7 @@ import {
   verticalListSortingStrategy
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import Image from 'next/image';
 
 interface App {
   id: string;
@@ -127,11 +128,11 @@ const getIconComponent = (iconName: string) => {
 
 // Add a SortableMenuItem component
 interface SortableMenuItemProps {
-  id: string;
-  item: App['adminMenuItems'][0];
-  onRemove: (id: string) => void;
-  onEdit: (id: string, updatedItem: Partial<App['adminMenuItems'][0]>) => void;
-  availableIcons: string[];
+  readonly id: string;
+  readonly item: App['adminMenuItems'][0];
+  readonly onRemove: (id: string) => void;
+  readonly onEdit: (id: string, updatedItem: Partial<App['adminMenuItems'][0]>) => void;
+  readonly availableIcons: string[];
 }
 
 function SortableMenuItem({ id, item, onRemove, onEdit, availableIcons }: SortableMenuItemProps) {
@@ -184,8 +185,9 @@ function SortableMenuItem({ id, item, onRemove, onEdit, availableIcons }: Sortab
         <div className="p-3">
           <div className="grid grid-cols-1 gap-3 mb-3">
             <div>
-              <label className="block text-xs font-medium mb-1">Name</label>
+              <label htmlFor="menuItemName" className="block text-xs font-medium mb-1">Name</label>
               <input
+                id="menuItemName"
                 type="text"
                 value={editedItem.name}
                 onChange={(e) => setEditedItem(prev => ({ ...prev, name: e.target.value }))}
@@ -194,8 +196,9 @@ function SortableMenuItem({ id, item, onRemove, onEdit, availableIcons }: Sortab
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">Path</label>
+              <label htmlFor="menuItemPath" className="block text-xs font-medium mb-1">Path</label>
               <input
+                id="menuItemPath"
                 type="text"
                 value={editedItem.path}
                 onChange={(e) => setEditedItem(prev => ({ ...prev, path: e.target.value }))}
@@ -204,8 +207,9 @@ function SortableMenuItem({ id, item, onRemove, onEdit, availableIcons }: Sortab
               />
             </div>
             <div>
-              <label className="block text-xs font-medium mb-1">Icon</label>
+              <label htmlFor="menuItemIcon" className="block text-xs font-medium mb-1">Icon</label>
               <select
+                id="menuItemIcon"
                 value={editedItem.icon}
                 onChange={(e) => setEditedItem(prev => ({ ...prev, icon: e.target.value }))}
                 className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-primary text-sm"
@@ -288,6 +292,29 @@ interface SortableAppCardProps {
   onToggleStatus: (app: App) => void;
 }
 
+// Add these helper functions before the component
+const getAppStatusStyle = (isLive: boolean): string => {
+  return isLive 
+    ? 'bg-green-100 text-green-800' 
+    : 'bg-gray-100 text-gray-800';
+};
+
+const getAppStatusText = (isLive: boolean): string => {
+  return isLive ? 'Live' : 'Draft';
+};
+
+const getToggleSwitchContainerStyle = (isEnabled: boolean): string => {
+  return `w-11 h-6 flex items-center rounded-full p-1 cursor-pointer ${
+    isEnabled ? 'bg-primary' : 'bg-gray-300'
+  }`;
+};
+
+const getToggleSwitchButtonStyle = (isEnabled: boolean): string => {
+  return `bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
+    isEnabled ? 'translate-x-5' : ''
+  }`;
+};
+
 function SortableAppCard({ id, app, onEdit, onDelete, onToggleStatus }: SortableAppCardProps) {
   const {
     attributes,
@@ -317,9 +344,11 @@ function SortableAppCard({ id, app, onEdit, onDelete, onToggleStatus }: Sortable
       </div>
       <div className="w-12 h-12 bg-accent rounded-md flex items-center justify-center overflow-hidden mr-4">
         {app.logoUrl ? (
-          <img 
+          <Image 
             src={app.logoUrl} 
-            alt={app.name} 
+            alt={app.name}
+            width={48}
+            height={48}
             className="w-full h-full object-contain"
           />
         ) : (
@@ -330,12 +359,8 @@ function SortableAppCard({ id, app, onEdit, onDelete, onToggleStatus }: Sortable
       <div className="flex-1 min-w-0">
         <div className="flex items-center">
           <h3 className="font-medium truncate mr-2">{app.name}</h3>
-          <span className={`px-2 py-0.5 text-xs rounded-full ${
-            app.isLive 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-gray-100 text-gray-800'
-          }`}>
-            {app.isLive ? 'Live' : 'Draft'}
+          <span className={`px-2 py-0.5 text-xs rounded-full ${getAppStatusStyle(app.isLive)}`}>
+            {getAppStatusText(app.isLive)}
           </span>
         </div>
         <div className="text-sm text-muted-foreground truncate">
@@ -418,7 +443,6 @@ export default function AppsAdmin() {
   const [isUploading, setIsUploading] = useState(false);
   const [selectedThemeMode, setSelectedThemeMode] = useState<'light' | 'dark'>('light');
   const [activeTab, setActiveTab] = useState<'general' | 'menu' | 'theme' | 'firebase'>('general');
-  const [newMenuItem, setNewMenuItem] = useState({ name: '', path: '', icon: 'Menu' });
   const [firebaseJsonError, setFirebaseJsonError] = useState('');
 
   // Icons available for menu items
@@ -434,7 +458,7 @@ export default function AppsAdmin() {
 
   // Redirect non-admin users
   useEffect(() => {
-    if (!user || !user.isAdmin) {
+    if (!user?.isAdmin) {
       router.push('/login');
       return;
     }
@@ -656,29 +680,6 @@ export default function AppsAdmin() {
       console.error("Error toggling app status:", error);
       toast.error("Failed to update app status");
     }
-  };
-
-  const addMenuItem = () => {
-    if (!newMenuItem.name || !newMenuItem.path) {
-      toast.error("Menu item name and path are required");
-      return;
-    }
-    
-    setCurrentApp(prev => ({
-      ...prev,
-      adminMenuItems: [
-        ...prev.adminMenuItems,
-        {
-          id: Date.now().toString(),
-          name: newMenuItem.name,
-          path: newMenuItem.path,
-          icon: newMenuItem.icon || 'Menu',
-          order: prev.adminMenuItems.length
-        }
-      ]
-    }));
-    
-    setNewMenuItem({ name: '', path: '', icon: 'Menu' });
   };
 
   const removeMenuItem = (id: string) => {
@@ -920,9 +921,11 @@ export default function AppsAdmin() {
                   <div className="flex items-center space-x-4">
                     {currentApp.logoUrl && (
                       <div className="w-16 h-16 border rounded-md overflow-hidden flex items-center justify-center">
-                        <img 
+                        <Image 
                           src={currentApp.logoUrl} 
                           alt="App Logo" 
+                          width={64}
+                          height={64}
                           className="max-w-full max-h-full object-contain"
                         />
                       </div>
@@ -960,16 +963,19 @@ export default function AppsAdmin() {
                     Live Status
                   </label>
                   <div 
-                    className={`w-11 h-6 flex items-center rounded-full p-1 cursor-pointer ${
-                      currentApp.isLive ? 'bg-primary' : 'bg-gray-300'
-                    }`}
+                    className={getToggleSwitchContainerStyle(currentApp.isLive)}
                     onClick={() => setCurrentApp(prev => ({ ...prev, isLive: !prev.isLive }))}
+                    role="switch"
+                    aria-checked={currentApp.isLive}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setCurrentApp(prev => ({ ...prev, isLive: !prev.isLive }));
+                      }
+                    }}
                   >
-                    <div
-                      className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${
-                        currentApp.isLive ? 'translate-x-5' : ''
-                      }`}
-                    />
+                    <div className={getToggleSwitchButtonStyle(currentApp.isLive)} />
                   </div>
                 </div>
               </div>

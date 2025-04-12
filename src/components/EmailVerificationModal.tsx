@@ -80,7 +80,7 @@ export default function EmailVerificationModal({ isOpen }: EmailVerificationModa
             <div className="mt-2">
               <p className="text-sm text-muted-foreground mb-4">
                 Please verify your email address before continuing with onboarding.
-                We've sent a verification link to <span className="font-medium">{user?.email}</span>.
+                We&apos;ve sent a verification link to <span className="font-medium">{user?.email}</span>.
               </p>
               
               <div className="bg-muted p-4 rounded-lg text-sm mb-4">

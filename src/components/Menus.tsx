@@ -18,9 +18,8 @@ const toTitleCase = (str: string): string => {
 };
 
 const Menus = memo(function Menus({ zone = 'footer' }: MenusProps) {
-  const { getMenusForZone, loading: contextLoading, appSettings } = useAppSettings();
+  const { getMenusForZone, loading: contextLoading } = useAppSettings();
   const [menus, setMenus] = useState<{ menu: Menu; items: MenuColumn[] }[]>([]);
-  const siteSettings = appSettings.siteSettings;
 
   // Fetch menus from context based on zone
   useEffect(() => {
