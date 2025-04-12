@@ -5,11 +5,16 @@ export async function middleware(request: NextRequest) {
   // Get the pathname
   const path = request.nextUrl.pathname;
 
+  // If the path is exactly the root, redirect to login
+  // if (path === '/') {
+  //   // return NextResponse.redirect(new URL('/login', request.url));
+  // }
+
   // Get the user token from the cookies
   const token = request.cookies.get('token')?.value;
 
   // Public paths that don't require authentication
-  const publicPaths = ['/', '/login', '/signup', '/onboarding', '/listing'];
+  const publicPaths = ['/login', '/signup', '/onboarding', '/listing','page1', 'page2', 'page3', 'page4', 'page5'];
   
   // Check if the path is public
   const isPublicPath = publicPaths.some(publicPath => 
@@ -21,9 +26,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // If there's a token and we're on a public path (except home), redirect to dashboard
-  if (token && publicPaths.includes(path) && path !== '/') {
-  //  return NextResponse.redirect(new URL('/onboarding', request.url));
+  //If there's a token and we're on a public path, redirect to dashboard
+  if (token && publicPaths.includes(path)) {
+    return NextResponse.redirect(new URL('/admin/apps', request.url));
   }
 
   return NextResponse.next();

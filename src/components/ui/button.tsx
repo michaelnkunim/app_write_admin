@@ -2,7 +2,7 @@ import React, { ButtonHTMLAttributes, forwardRef } from 'react';
 import cn from 'classnames';
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'primary' | 'outline' | 'destructive' | 'success' | 'warning';
+  variant?: 'default' | 'primary' | 'outline' | 'destructive' | 'success' | 'warning' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   className?: string;
@@ -30,6 +30,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       destructive: 'bg-red-600 text-white hover:bg-red-700',
       success: 'bg-gg-600 text-white hover:bg-gg-700',
       warning: 'bg-amber-500 text-white hover:bg-amber-600',
+      ghost: 'bg-transparent hover:bg-gray-100 dark:hover:bg-gray-800',
     };
     
     const sizeStyles = {

@@ -50,7 +50,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       if (langSettings?.customLabels) {
         // If we have custom labels in appSettings, merge with base labels
         // Custom labels take priority (they're spread last)
-        console.log('Using customLabels from appSettings for', lang);
+       // console.log('Using customLabels from appSettings for', lang);
         return deepMergeLabels(baseLabels, langSettings.customLabels) as LabelStructure;
       }
       
@@ -125,19 +125,19 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Load saved language preference on mount
   useEffect(() => {
     const loadLanguage = async () => {
-      console.log('🔍 Loading language, appSettings changed', appSettings.updatedAt);
-      console.log('🔍 Current appSettings languages:', appSettings.languages);
+     // console.log('🔍 Loading language, appSettings changed', appSettings.updatedAt);
+     // console.log('🔍 Current appSettings languages:', appSettings.languages);
       
       const savedLanguage = localStorage.getItem('language') as SupportedLanguage;
       if (savedLanguage && (savedLanguage === 'en' || savedLanguage === 'fr')) {
         setLanguageState(savedLanguage);
         const mergedLabels = await mergeLabels(savedLanguage);
-        console.log('🔍 Setting merged labels for', savedLanguage);
+       // console.log('🔍 Setting merged labels for', savedLanguage);
         setLabels(mergedLabels as LabelStructure);
       } else {
         // Default to English
         const mergedLabels = await mergeLabels('en');
-        console.log('🔍 Setting default English merged labels');
+       //console.log('🔍 Setting default English merged labels');
         setLabels(mergedLabels as LabelStructure);
       }
     };
@@ -149,13 +149,13 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   // Update labels when language changes
   useEffect(() => {
     const updateLabels = async () => {
-      console.log('🔍 Language changed to', language, ', updating labels');
+     // console.log('🔍 Language changed to', language, ', updating labels');
       
       // Directly fetch from Firestore to ensure we have the latest data
       try {
         const settingsDoc = await getDoc(doc(db, 'appSettings', 'interface'));
         if (settingsDoc.exists()) {
-          console.log('🔍 Directly fetched Firestore data:', settingsDoc.data());
+         // console.log('🔍 Directly fetched Firestore data:', settingsDoc.data());
         }
       } catch (error) {
         console.error('Error fetching Firestore data:', error);

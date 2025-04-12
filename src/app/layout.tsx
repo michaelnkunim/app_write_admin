@@ -8,6 +8,7 @@ import { OnboardingProvider } from '@/context/OnboardingContext';
 import { AppSettingsProvider } from '@/context/AppSettingsContext';
 import { UnreadCountProvider } from '@/context/UnreadCountContext';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { AlarmProvider } from '@/context/AlarmContext';
 import ClientLayout from './client-layout';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -33,7 +34,9 @@ export default function RootLayout({
                   <OnboardingProvider>
                     <UnreadCountProvider>
                       <LanguageProvider>
-                        <ClientLayout>{children}</ClientLayout>
+                        <AlarmProvider>
+                          <ClientLayout>{children}</ClientLayout>
+                        </AlarmProvider>
                       </LanguageProvider>
                     </UnreadCountProvider>
                   </OnboardingProvider>

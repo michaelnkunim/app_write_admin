@@ -37,6 +37,35 @@ export default function Navbar() {
   const [isLanguageModalOpen, setIsLanguageModalOpen] = useState(false);
   const [searchValue, setSearchValue] = useState('');
   const { totalUnreadCount } = useUnreadCount();
+  const [currentTime, setCurrentTime] = useState<string>('');
+  const [currentDate, setCurrentDate] = useState<string>('');
+
+  // Update time every second
+  useEffect(() => {
+    const updateTime = () => {
+      const now = new Date();
+      setCurrentTime(now.toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      }));
+      setCurrentDate(now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }));
+    };
+
+    // Initial update
+    updateTime();
+
+    // Set up interval
+    const timer = setInterval(updateTime, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -52,18 +81,18 @@ export default function Navbar() {
 
   return (
     <header 
-      className={`sticky top-0 transition-all duration-300 navbar background z-50`}
+      className={`sticky fixed top-0 transition-all duration-300 navbar background z-50`}
     >
-      <div className="container mx-auto px-4 py-2">
+      <div className="containe mx-auto px-4 py-2">
 
         {/* Mobile Layout: 2 columns */}
         <div className="grid md:hidden grid-cols-2 items-center">
-          <Link href="/" className="flex justify-start text-[#FF385C]">
+          <Link href="/" className="flex ml-10 justify-start text-[#FF385C]">
             <Logo />
           </Link>
           
           <div className="flex items-center justify-end space-x-2">
-            <Link
+            {/* <Link
               href="/favorites"
               className="relative p-2 hover:bg-accent rounded-full transition-colors"
               onClick={() => setIsSearchPopupOpen(true)}
@@ -74,7 +103,7 @@ export default function Navbar() {
                   {favorites.length}
                 </span>
               )}
-            </Link>
+            </Link> */}
             <button
               onClick={() => setIsLanguageModalOpen(true)}
               className="p-2 hover:bg-accent rounded-full transition-colors"
@@ -88,12 +117,20 @@ export default function Navbar() {
 
         {/* Desktop Layout: 4 columns */}
         <div className="hidden md:grid grid-cols-4 items-center">
-          <Link href="/" className="flex justify-start text-[#FF385C]">
+          <Link href="/" className="flex ml-14 justify-start text-[#FF385C]">
             <Logo />
           </Link>
 
           <div className="col-span-2 flex items-center justify-center">
-            <div className={`w-full max-w-xl flex items-center rounded-full hover:shadow-md transition cursor-pointer background/60 backdrop-blur-lg border-gray-500 search-input`}>
+            <div className="flex items-center gap-2 mr-4">
+              <div className="text-sm font-bold bg-accent/10 px-3 py-1 rounded-md">
+                {currentDate}
+              </div>
+              <div className="text-sm font-bold bg-accent/10 px-3 py-1 rounded-md">
+                {currentTime}
+              </div>
+            </div>
+            {/* <div className={`w-full max-w-xl flex items-center rounded-full hover:shadow-md transition cursor-pointer background/60 backdrop-blur-lg border-gray-500 search-input`}>
               <input
                 type="text"
                 value={searchValue}
@@ -110,7 +147,7 @@ export default function Navbar() {
                   <MagnifyingGlassIcon className="h-5 w-5 text-white" />
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex items-center justify-end space-x-4">
@@ -126,7 +163,7 @@ export default function Navbar() {
               </Link>
             )}
 
-            <Link
+            {/* <Link
               href="/favorites"
               className="relative p-2 hover:bg-accent rounded-full transition-colors"
             >
@@ -136,7 +173,7 @@ export default function Navbar() {
                   {favorites.length}
                 </span>
               )}
-            </Link>
+            </Link> */}
 
             <Link 
               href="/chat"
@@ -150,13 +187,13 @@ export default function Navbar() {
               )}
             </Link>
 
-            <button
+            {/* <button
               onClick={() => setIsLanguageModalOpen(true)}
               className="p-2 hover:bg-accent rounded-full transition-colors"
               aria-label={labels.shared.CHANGE_LANGUAGE}
             >
               <GlobeAltIcon className="h-6 w-6" />
-            </button>
+            </button> */}
 
             <ThemeToggle />
 

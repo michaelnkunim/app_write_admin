@@ -25,7 +25,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const db = getFirestore(app);
 
-export default function Home() {
+export default function Page4() {
   const [activeSection, setActiveSection] = useState(0);
   const sections = ['Home', 'Services', 'About', 'Contact'];
   const { theme, setTheme } = useTheme();

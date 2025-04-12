@@ -543,7 +543,7 @@ export default function LoginComponent({ onSuccess }: LoginComponentProps) {
             </svg>
             Continue with Google
           </button>
-        )}
+          )} 
         {authMethods.apple && (
           <button
             onClick={handleAppleSignIn}
