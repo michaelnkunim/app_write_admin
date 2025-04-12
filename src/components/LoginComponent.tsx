@@ -527,7 +527,7 @@ export default function LoginComponent({ onSuccess }: LoginComponentProps) {
 
       {/* Social Login Buttons */}
       <div className="space-y-3">
-        {authMethods.google && (
+        {/* {authMethods.google && ( */}
           <button
             onClick={handleGoogleSignIn}
             className="w-full flex items-center justify-center gap-3 border border-input background text-foreground rounded-lg py-3 hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -542,7 +542,7 @@ export default function LoginComponent({ onSuccess }: LoginComponentProps) {
             </svg>
             Continue with Google
           </button>
-          )} 
+           {/* )}  */}
         {authMethods.apple && (
           <button
             onClick={handleAppleSignIn}
