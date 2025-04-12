@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import { useState, ChangeEvent, useEffect, useRef, useCallback } from 'react';
+import { useState, ChangeEvent, useEffect, useRef, useCallback, Suspense } from 'react';
 import { storage } from '@/lib/firebase';
 import { serverTimestamp, updateDoc, doc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
@@ -144,13 +145,12 @@ interface SocialMediaItem {
   order: number;
 }
 
-export default function AdminInterface() {
+// Create a client component that uses useSearchParams
+function AdminInterfaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const selectedTab = searchParams.get('tab') || 'menus';
-  // const { user } = useAuth();
-  // const { appId, appSettings: contextAppSettings, saveAppSettings: saveContextAppSettings } = useAdminApp();
-  const { appSettings: contextAppSettings, appFirebase } = useAdminApp();
+  const selectedTab = searchParams.get('tab') ?? 'menus';
+  const { appFirebase } = useAdminApp();
   const { appFirebaseError, appFirebaseLoading, getDocument, saveDocument, db } = useAppFirestore();
   
   // State for app settings
@@ -168,7 +168,7 @@ export default function AdminInterface() {
   const [selectedAd, setSelectedAd] = useState<string | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [expandedColumns, setExpandedColumns] = useState<{[key: string]: {[key: number]: boolean}}>({});
-  const [expandedMenuItems, setExpandedMenuItems] = useState<{[key: string]: {[key: number]: {[key: number]: boolean}}}>({});
+  const [expandedMenuItems, setExpandedMenuItems] = useState<{[key: string]: boolean}>({});
   
   // State for new menu
   const [newMenu, setNewMenu] = useState<Omit<Menu, 'id'>>({
@@ -263,7 +263,10 @@ export default function AdminInterface() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [savingSliderItem, setSavingSliderItem] = useState<boolean>(false);
+  const [updatingSliderItem, setUpdatingSliderItem] = useState<boolean>(false);
+  const [updatingAd, setUpdatingAd] = useState<boolean>(false);
   
   // Replace all fetch app settings function to use modals
   // Helper to open a modal
@@ -415,7 +418,7 @@ export default function AdminInterface() {
         ads,
         socialMedia,
         updatedAt: new Date(),
-        adzones: contextAppSettings.adzones ?? []
+        adzones: [] // Using empty array instead of contextAppSettings.adzones
       };
       
       // Save to Firestore using the app's Firestore instance
@@ -534,7 +537,7 @@ export default function AdminInterface() {
       
       // Auto-expand the newly added item
       const itemKey = `${menuId}_${columnIndex}_${newItemIndex}`;
-      setExpandedMenuItems(prev => ({
+      setExpandedMenuItems((prev: any) => ({
         ...prev,
         [itemKey]: true
       }));
@@ -795,9 +798,8 @@ export default function AdminInterface() {
         ...sliderItems,
         [selectedSlider]: [...currentItems, sliderItemData]
       };
-      
       setSliderItems(updatedSliderItems);
-      setNewSliderItem({ title: '', link: '' });
+      setNewSliderItem({ title: '', link: '', imageUrl: '' });
       setImageFile(null);
       setImagePreview(null);
       
@@ -1102,7 +1104,7 @@ export default function AdminInterface() {
 
   // Add toggle function for expanding/collapsing menu columns
   const toggleColumnExpand = (menuId: string, columnIndex: number) => {
-    setExpandedColumns(prev => ({
+    setExpandedColumns((prev: any) => ({
       ...prev,
       [`${menuId}_${columnIndex}`]: !prev[`${menuId}_${columnIndex}`]
     }));
@@ -1119,22 +1121,24 @@ export default function AdminInterface() {
 
   // Add functions to expand or collapse all items in a column
   const expandAllMenuItems = (menuId: string, columnIndex: number) => {
-    const columnItems = menuItems[menuId][columnIndex].items ?? [];
+    const columnItems = menuItems[menuId]?.[columnIndex]?.items || [];
     const newExpandedState = { ...expandedMenuItems };
     
     columnItems.forEach((_, itemIndex) => {
-      newExpandedState[`${menuId}_${columnIndex}_${itemIndex}`] = true;
+      const itemKey = `${menuId}_${columnIndex}_${itemIndex}`;
+      newExpandedState[itemKey] = true;
     });
     
     setExpandedMenuItems(newExpandedState);
   };
 
   const collapseAllMenuItems = (menuId: string, columnIndex: number) => {
-    const columnItems = menuItems[menuId][columnIndex].items ?? [];
+    const columnItems = menuItems[menuId]?.[columnIndex]?.items || [];
     const newExpandedState = { ...expandedMenuItems };
     
     columnItems.forEach((_, itemIndex) => {
-      newExpandedState[`${menuId}_${columnIndex}_${itemIndex}`] = false;
+      const itemKey = `${menuId}_${columnIndex}_${itemIndex}`;
+      newExpandedState[itemKey] = false;
     });
     
     setExpandedMenuItems(newExpandedState);
@@ -1264,8 +1268,7 @@ export default function AdminInterface() {
         type: AdType.TEXT,
         zone: '',
         active: true,
-        order: 0,
-        content: '',
+        content: ''
       });
       setAdImageFile(null);
       setAdImagePreview(null);
@@ -1483,7 +1486,7 @@ export default function AdminInterface() {
         ads,
         socialMedia,
         updatedAt: new Date(),
-        adzones: contextAppSettings.adzones ?? []
+        adzones: [] // Using empty array instead of contextAppSettings.adzones
       };
       
       // Save to Firestore using the app's Firestore instance
@@ -1501,10 +1504,11 @@ export default function AdminInterface() {
 
   // Add function to start editing an ad
   const startEditingAd = (adId: string) => {
-    const ad = ads.find(a => a.id === adId);
+    // Find the ad
+    const ad = ads.find(ad => ad.id === adId);
     if (!ad) return;
     
-    setEditingAd(true);
+    setEditingAd(adId); // Use the ID instead of boolean
     setEditAd({
       title: ad.title,
       link: ad.link,
@@ -1520,7 +1524,7 @@ export default function AdminInterface() {
 
   // Add function to cancel editing
   const cancelEditingAd = () => {
-    setEditingAd(false);
+    setEditingAd(null); // Use null instead of boolean
     setEditAd({
       title: '',
       link: '',
@@ -2039,7 +2043,9 @@ export default function AdminInterface() {
                           </div>
                         </div>
                         
-                        {expandedColumns[`${selectedMenu}_${columnIndex}`] !== false && (
+                        {!expandedColumns[selectedMenu] || 
+                         !expandedColumns[selectedMenu][columnIndex] || 
+                         expandedColumns[selectedMenu][columnIndex] === true ? (
                           <div className="p-3 space-y-2">
                             {(menuItems[selectedMenu][columnIndex].items ?? []).map((item, itemIndex) => {
                               // Determine if this item has content
@@ -2144,7 +2150,7 @@ export default function AdminInterface() {
                               Add
                             </button>
                           </div>
-                        )}
+                        ) : null}
                       </div>
                     ))
                   }
@@ -2540,7 +2546,7 @@ export default function AdminInterface() {
                                   
                                   <div className="space-x-2">
                                     <button
-                                      onClick={() => startEditingSliderItem({ sliderId: selectedSlider, itemId: item.id })}
+                                      onClick={() => startEditingSliderItem(selectedSlider, item.id)}
                                       className="p-1.5 text-blue-500 hover:bg-blue-50 rounded inline-flex items-center"
                                     >
                                       <Edit className="w-4 h-4 mr-1" />
@@ -2617,29 +2623,19 @@ export default function AdminInterface() {
                 <div>
                   <label className="block text-sm font-medium mb-1">Zone</label>
                   <select
+                    id="adzone"
                     name="zone"
                     value={newAd.zone}
                     onChange={handleAdChange}
-                    className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/50 focus:border-primary bg-card"
+                    className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    required
                   >
-                    <option value="">Select a zone</option>
-                    {/* Default zones */}
+                    <option value="">Select an ad zone</option>
                     <option value="sidebar">Sidebar</option>
                     <option value="header">Header</option>
                     <option value="footer">Footer</option>
-                    <option value="content">In-Content</option>
-                    
-                    {/* Registered zones from components */}
-                    {contextAppSettings?.adzones && contextAppSettings.adzones.length > 0 && (
-                      <>
-                        {contextAppSettings.adzones
-                          .filter((zone: string) => !['sidebar', 'header', 'footer', 'content'].includes(zone))
-                          .map((zone: string) => (
-                            <option key={zone} value={zone}>{zone}</option>
-                          ))
-                        }
-                      </>
-                    )}
+                    <option value="content">Content</option>
+                    {/* Custom zones could be added here if needed */}
                   </select>
                 </div>
                 
@@ -2862,29 +2858,19 @@ export default function AdminInterface() {
                             <div>
                               <label className="block text-sm font-medium mb-1">Zone</label>
                               <select
+                                id="adzone-edit"
                                 name="zone"
                                 value={editAd.zone}
                                 onChange={handleEditAdChange}
-                                className="w-full p-2 border rounded focus:ring-2 focus:ring-primary/50 focus:border-primary bg-card"
+                                className="w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                                required
                               >
-                                <option value="">Select a zone</option>
-                                {/* Default zones */}
+                                <option value="">Select an ad zone</option>
                                 <option value="sidebar">Sidebar</option>
                                 <option value="header">Header</option>
                                 <option value="footer">Footer</option>
-                                <option value="content">In-Content</option>
-                                
-                                {/* Registered zones from components */}
-                                {contextAppSettings?.adzones && contextAppSettings.adzones.length > 0 && (
-                                  <>
-                                    {contextAppSettings.adzones
-                                      .filter((zone: string) => !['sidebar', 'header', 'footer', 'content'].includes(zone))
-                                      .map((zone: string) => (
-                                        <option key={zone} value={zone}>{zone}</option>
-                                      ))
-                                    }
-                                  </>
-                                )}
+                                <option value="content">Content</option>
+                                {/* Custom zones could be added here if needed */}
                               </select>
                             </div>
                             
@@ -3398,3 +3384,12 @@ const renderSocialIcon = (icon: string) => {
       return <Share2 className="w-5 h-5" />;
   }
 }; 
+
+// Main component with Suspense boundary
+export default function AdminInterface() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading admin interface...</div>}>
+      <AdminInterfaceContent />
+    </Suspense>
+  );
+} 

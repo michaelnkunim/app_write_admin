@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
@@ -9,7 +9,8 @@ import Link from 'next/link';
 import { onAuthStateChanged, Unsubscribe } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
-export default function EmailVerificationPage() {
+// Component that uses useSearchParams
+function EmailVerificationContent() {
   const { user, loading: authLoading, reloadUser, resendVerificationEmail } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -201,57 +202,57 @@ export default function EmailVerificationPage() {
             </div>
           )}
           
-          {user.emailVerified && isNotVerified ? (
-            <div className="mt-2">
+          {!user.emailVerified && (
+            <div className="space-y-4 mt-6">
+              <div className="flex flex-col items-center gap-3">
+                <p className="text-sm text-muted-foreground">
+                  Didn&apos;t receive the email? Check your spam folder or request a new verification email.
+                </p>
+                <button
+                  onClick={handleResendVerification}
+                  disabled={isChecking}
+                  className="text-primary hover:text-primary/90 transition-colors"
+                >
+                  {isChecking ? 'Sending...' : 'Resend Verification Email'}
+                </button>
+              </div>
+              
+              <div className="mt-4 border-t pt-4">
+                <p className="text-sm text-muted-foreground mb-2">
+                  Already verified your email?
+                </p>
+                <button
+                  onClick={handleRecheckVerification}
+                  disabled={isChecking}
+                  className="text-primary hover:text-primary/90 transition-colors"
+                >
+                  {isChecking ? 'Checking...' : 'Check Verification Status'}
+                </button>
+              </div>
+            </div>
+          )}
+          
+          {user.emailVerified && (
+            <div className="mt-6">
               <button
                 onClick={handleContinue}
-                className="w-full bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
+                className="bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Continue
               </button>
             </div>
-          ) : !user.emailVerified && (
-            <>
-              <p className="mb-6 text-muted-foreground">
-                A verification email has been sent to <span className="font-medium">{user.email}</span>. 
-                Click the link in the email to verify your address.
-              </p>
-              
-              <div className="flex flex-col gap-4">
-                <button 
-                  onClick={handleRecheckVerification}
-                  disabled={isChecking}
-                  className="w-full bg-primary text-primary-foreground px-6 py-2 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
-                >
-                  {isChecking ? (
-                    <span className="flex items-center justify-center">
-                      <span className="h-4 w-4 mr-2 border-2 border-t-white border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin"></span>
-                      Checking...
-                    </span>
-                  ) : (
-                    'Recheck Verification'
-                  )}
-                </button>
-                
-                <button
-                  onClick={handleResendVerification}
-                  disabled={isChecking}
-                  className="w-full bg-muted text-foreground border border-input px-6 py-2 rounded-lg hover:bg-muted/90 transition-colors disabled:opacity-50"
-                >
-                  Resend Verification Email
-                </button>
-                
-                <Link
-                  href="/login"
-                  className="w-full bg-muted text-muted-foreground px-6 py-2 rounded-lg hover:bg-muted/90 transition-colors text-center"
-                >
-                  Back to Login
-                </Link>
-              </div>
-            </>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function EmailVerificationPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading verification page...</div>}>
+      <EmailVerificationContent />
+    </Suspense>
   );
 } 

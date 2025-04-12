@@ -73,7 +73,7 @@ export default function ChatThreadList({ onSelectThread, selectedThreadId }: Cha
                 <div className="relative h-12 w-12 rounded-full overflow-hidden flex-shrink-0">
                   <Image
                     src={otherParticipant?.photoURL || '/default-avatar.svg'}
-                    alt={otherParticipant?.name}
+                    alt={otherParticipant?.name || 'User'}
                     className="object-cover"
                     width={48}
                     height={48}

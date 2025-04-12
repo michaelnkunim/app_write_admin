@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { getUserProfile, updateUserProfile, uploadProfilePhoto, uploadBannerPhoto, IdVerificationStatus } from '@/lib/userProfile';
 import { toast } from 'sonner';
@@ -10,7 +10,7 @@ import ImageCropModal from '@/components/ImageCropModal';
 import RouteGuard from '@/components/RouteGuard';
 import { FirebaseError } from 'firebase/app';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { User, Shield, CreditCard, Upload, Info } from 'lucide-react';
+import { User, Shield, Info } from 'lucide-react';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '@/lib/firebase';
 import AgentProfileCard from '@/components/AgentProfileCard';
@@ -114,7 +114,8 @@ function ProfileCompletionBar({ formData, photoURL }: { readonly formData: FormD
   );
 }
 
-export default function AccountPage() {
+// Create a client component that uses useSearchParams
+function AccountPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const activeTab = searchParams.get('tab') ?? 'account';
@@ -800,7 +801,7 @@ export default function AccountPage() {
                 <div className="flex flex-col items-center justify-center w-full h-48 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors relative overflow-hidden">
                   <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                      <Info className="w-8 h-8 text-muted-foreground mb-2" />
                       <p className="mb-2 text-sm text-muted-foreground">
                         <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
@@ -855,7 +856,7 @@ export default function AccountPage() {
                 <div className="flex flex-col items-center justify-center w-full h-48 rounded-lg border-2 border-dashed border-gray-300 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors relative overflow-hidden">
                   <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer">
                     <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 text-muted-foreground mb-2" />
+                      <Info className="w-8 h-8 text-muted-foreground mb-2" />
                       <p className="mb-2 text-sm text-muted-foreground">
                         <span className="font-semibold">Click to upload</span> or drag and drop
                       </p>
@@ -897,105 +898,117 @@ export default function AccountPage() {
   };
 
   return (
-    <RouteGuard requireUserType="provider">
-      <div className="relative">
-        <div className="sticky sm:top-15 top-14 z-50 background backdrop-blur-sm shadow-sm">
-          <ProfileCompletionBar formData={formData} photoURL={photoURL} />
-        </div>
+    <RouteGuard>
+      <div className="min-h-screen">
+        <ProfileCompletionBar formData={formData} photoURL={photoURL} />
         
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-4xl mx-auto">
-            <h1 className="text-2xl font-semibold mb-6">Account Settings</h1>
-
-            {/* Tabs Navigation */}
+            {/* Tabs */}
             <div className="mb-8 border-b">
-              <div className="flex space-x-2">
+              <div className="flex flex-nowrap overflow-x-auto sm:overflow-x-visible pb-2">
                 <button
-                  onClick={() => navigateToTab('account')}
-                  className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
                     activeTab === 'account' 
-                      ? 'border-b-2 border-primary text-primary'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-primary border-b-2 border-primary' 
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
+                  onClick={() => navigateToTab('account')}
                 >
-                  <User className="w-4 h-4 mr-2" /> 
-                  Profile
+                  <span className="flex items-center gap-2">
+                    <User className="h-4 w-4" />
+                    <span>Account</span>
+                  </span>
                 </button>
+                
                 <button
-                  onClick={() => navigateToTab('security')}
-                  className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
                     activeTab === 'security' 
-                      ? 'border-b-2 border-primary text-primary'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-primary border-b-2 border-primary' 
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
+                  onClick={() => navigateToTab('security')}
                 >
-                  <Shield className="w-4 h-4 mr-2" /> 
-                  Security
+                  <span className="flex items-center gap-2">
+                    <Shield className="h-4 w-4" />
+                    <span>Security</span>
+                  </span>
                 </button>
+                
                 <button
-                  onClick={() => navigateToTab('verification')}
-                  className={`px-4 py-3 font-medium text-sm inline-flex items-center ${
+                  className={`px-4 py-2 font-medium text-sm transition-colors ${
                     activeTab === 'verification' 
-                      ? 'border-b-2 border-primary text-primary'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'text-primary border-b-2 border-primary' 
+                      : 'text-muted-foreground hover:text-foreground'
                   }`}
+                  onClick={() => navigateToTab('verification')}
                 >
-                  <CreditCard className="w-4 h-4 mr-2" /> 
-                  Verification
+                  <span className="flex items-center gap-2">
+                    <Info className="h-4 w-4" />
+                    <span>ID Verification</span>
+                  </span>
                 </button>
               </div>
             </div>
-
-            {/* Tab Content */}
+            
+            {/* Tab content */}
             <div>
               {activeTab === 'account' && renderAccountTab()}
               {activeTab === 'security' && renderSecurityTab()}
               {activeTab === 'verification' && renderVerificationTab()}
             </div>
-
-            {photoFile && (
-              <ImageCropModal
-                isOpen={isPhotoCropModalOpen}
-                onClose={() => setIsPhotoCropModalOpen(false)}
-                onCropComplete={handleCropComplete}
-                imageFile={photoFile}
-                aspectRatio={1}
-                circularCrop={true}
-              />
-            )}
-
-            {bannerFile && (
-              <ImageCropModal
-                isOpen={isBannerCropModalOpen}
-                onClose={() => setIsBannerCropModalOpen(false)}
-                onCropComplete={handleBannerCropComplete}
-                imageFile={bannerFile}
-                aspectRatio={4}
-              />
-            )}
-
-            {idFrontFile && (
-              <ImageCropModal
-                isOpen={isIdFrontCropModalOpen}
-                onClose={() => setIsIdFrontCropModalOpen(false)}
-                onCropComplete={handleIdFrontCropComplete}
-                imageFile={idFrontFile}
-                aspectRatio={1.6}
-              />
-            )}
-
-            {idBackFile && (
-              <ImageCropModal
-                isOpen={isIdBackCropModalOpen}
-                onClose={() => setIsIdBackCropModalOpen(false)}
-                onCropComplete={handleIdBackCropComplete}
-                imageFile={idBackFile}
-                aspectRatio={1.6}
-              />
-            )}
           </div>
         </div>
+        
+        {isPhotoCropModalOpen && photoFile && (
+          <ImageCropModal
+            imageFile={photoFile}
+            isOpen={isPhotoCropModalOpen}
+            onClose={() => setIsPhotoCropModalOpen(false)}
+            onCropComplete={handleCropComplete}
+            aspectRatio={1}
+          />
+        )}
+        
+        {isBannerCropModalOpen && bannerFile && (
+          <ImageCropModal
+            imageFile={bannerFile}
+            isOpen={isBannerCropModalOpen}
+            onClose={() => setIsBannerCropModalOpen(false)}
+            onCropComplete={handleBannerCropComplete}
+            aspectRatio={3}
+          />
+        )}
+        
+        {isIdFrontCropModalOpen && idFrontFile && (
+          <ImageCropModal
+            imageFile={idFrontFile}
+            isOpen={isIdFrontCropModalOpen}
+            onClose={() => setIsIdFrontCropModalOpen(false)}
+            onCropComplete={handleIdFrontCropComplete}
+            aspectRatio={1.5}
+          />
+        )}
+        
+        {isIdBackCropModalOpen && idBackFile && (
+          <ImageCropModal
+            imageFile={idBackFile}
+            isOpen={isIdBackCropModalOpen}
+            onClose={() => setIsIdBackCropModalOpen(false)}
+            onCropComplete={handleIdBackCropComplete}
+            aspectRatio={1.5}
+          />
+        )}
       </div>
     </RouteGuard>
+  );
+}
+
+// Main component with Suspense boundary
+export default function AccountPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading account details...</div>}>
+      <AccountPageContent />
+    </Suspense>
   );
 } 

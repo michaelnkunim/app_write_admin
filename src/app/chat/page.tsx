@@ -47,7 +47,8 @@ export default function ChatPage() {
     }
   };
 
-
+  // Get thread ID as string or undefined
+  const threadId = selectedThread ? selectedThread.id : undefined;
 
   // Mobile: Show either thread list or selected thread
   if (isMobile) {
@@ -63,7 +64,7 @@ export default function ChatPage() {
       <div className="h-[calc(100vh-4rem)] w-full overflow-hidden">
         <ChatThreadList
           onSelectThread={handleSelectThread}
-          selectedThreadId={selectedThread?.id as string | undefined}
+          selectedThreadId={threadId}
         />
       </div>
     );
@@ -75,7 +76,7 @@ export default function ChatPage() {
       <div className="w-full max-w-sm border-r border-border overflow-hidden">
         <ChatThreadList
           onSelectThread={handleSelectThread}
-          selectedThreadId={selectedThread?.id as string | undefined}
+          selectedThreadId={threadId}
         />
       </div>
       <div className="flex-1 overflow-hidden">

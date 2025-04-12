@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -50,10 +51,10 @@ export default function SearchResultsPopup({
 
     const timeoutId = setTimeout(() => {
       setLoading(true);
-      searchIndex.search(searchValue).then(({ hits }) => {
-        setResults(hits as SearchResult[]);
+      searchIndex.search(searchValue).then(({ hits }: any) => {
+        setResults(hits);
         setLoading(false);
-      }).catch(error => {
+      }).catch((error: Error) => {
         console.error('Search error:', error);
         setLoading(false);
       });

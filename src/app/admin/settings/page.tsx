@@ -2,7 +2,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Settings, Save, AlertTriangle, Globe, Server, Search as MagnifyingGlassIcon } from 'lucide-react';
@@ -59,7 +59,8 @@ const TABS = [
   { id: 'search', label: 'Search', icon: MagnifyingGlassIcon },
 ];
 
-export default function SettingsAdminPage() {
+// Content component that uses useSearchParams
+function SettingsAdminContent() {
   const { user } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -1543,5 +1544,14 @@ export default function SettingsAdminPage() {
         )}
       </form>
     </div>
+  );
+}
+
+// Main component with Suspense boundary
+export default function SettingsAdminPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Loading settings...</div>}>
+      <SettingsAdminContent />
+    </Suspense>
   );
 } 

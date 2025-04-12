@@ -744,6 +744,11 @@ export default function BlogEditor() {
     try {
       setLoading(true);
       // Get the cropped image as a data URL
+      if (!imageSrc || !croppedAreaPixels) {
+        toast.error('No image or crop area selected');
+        setLoading(false);
+        return;
+      }
       const croppedImageDataUrl = await getCroppedImg(imageSrc, croppedAreaPixels);
       
       let imageBlob: Blob;

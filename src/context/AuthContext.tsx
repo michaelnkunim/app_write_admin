@@ -14,7 +14,8 @@ import {
   EmailAuthProvider,
   reauthenticateWithCredential,
   sendEmailVerification,
-  applyActionCode
+  applyActionCode,
+  sendSignInLinkToEmail
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
@@ -42,6 +43,7 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signInWithApple: () => Promise<void>;
   signInWithFacebook: () => Promise<void>;
+  signInWithEmail: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   sendVerificationEmail: (redirectUrl?: string) => Promise<void>;
@@ -57,6 +59,7 @@ const AuthContext = createContext<AuthContextType>({
   signInWithGoogle: async () => {},
   signInWithApple: async () => {},
   signInWithFacebook: async () => {},
+  signInWithEmail: async () => {},
   logout: async () => {},
   changePassword: async () => {},
   sendVerificationEmail: async () => {},
@@ -267,6 +270,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const signInWithEmail = async (email: string) => {
+    try {
+      setLoading(true);
+      // Use Firebase's sendSignInLinkToEmail
+      const actionCodeSettings = {
+        url: `${window.location.origin}/auth/email-signin`,
+        handleCodeInApp: true
+      };
+      
+      await sendSignInLinkToEmail(auth, email, actionCodeSettings);
+      
+      // Save the email to localStorage to remember it for when user clicks the link in email
+      window.localStorage.setItem('emailForSignIn', email);
+      
+      return;
+    } catch (error) {
+      console.error('Email sign-in error:', error);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const logout = async () => {
     try {
       await signOut(auth);
@@ -399,6 +425,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         signInWithGoogle,
         signInWithApple,
         signInWithFacebook,
+        signInWithEmail,
         logout,
         changePassword,
         sendVerificationEmail,
