@@ -133,20 +133,20 @@ const getPriorityStyles = (priority: 'low' | 'medium' | 'high') => {
 };
 
 // Add this function before the component
-const getStatusStyles = (status: 'backlog' | 'open' | 'closed' | 'completed' | 'in-progress' | 'paused') => {
-  switch (status) {
-    case 'open':
-      return 'bg-blue-100 text-blue-800';
-    case 'completed':
-      return 'bg-green-100 text-green-800 opacity-70';
-    case 'in-progress':
-      return 'bg-emerald-100 text-emerald-800';
-    case 'paused':
-      return 'bg-amber-100 text-amber-800';
-    default:
-      return 'bg-gray-100 text-gray-800';
-  }
-};
+// const getStatusStyles = (status: 'backlog' | 'open' | 'closed' | 'completed' | 'in-progress' | 'paused') => {
+//   switch (status) {
+//     case 'open':
+//       return 'bg-blue-100 text-blue-800';
+//     case 'completed':
+//       return 'bg-green-100 text-green-800 opacity-70';
+//     case 'in-progress':
+//       return 'bg-emerald-100 text-emerald-800';
+//     case 'paused':
+//       return 'bg-amber-100 text-amber-800';
+//     default:
+//       return 'bg-gray-100 text-gray-800';
+//   }
+// };
 
 // Add this function before the component
 const getBorderStyles = (status: 'backlog' | 'open' | 'closed' | 'completed' | 'in-progress' | 'paused') => {
