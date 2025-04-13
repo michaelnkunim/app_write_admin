@@ -86,7 +86,7 @@ body {
   --background-end-rgb: 0, 0, 0;
   
   /* Base theme colors */
-  --background: #000 !important;
+  --background: #0a0a0a !important;
   --foreground:  rgb(var(--foreground-rgb));
 
   
@@ -116,7 +116,7 @@ body {
   --text-secondary: theme('colors.gray.400');
   --rating-color: theme('colors.gray.50');
 
-  --border: #a8a8a871 !important;
+  --border: #2d2d2d !important;
   --primary: #FF385C !important;
   --primary-text: #FFFFFF !important;
   --mute: #1b253b !important;

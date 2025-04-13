@@ -7,6 +7,8 @@ import Image from 'next/image';
 import { useTheme } from 'next-themes';
 import { getFirestore, collection, addDoc } from 'firebase/firestore';
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { useAuth } from '@/context/AuthContext';
+import Link from 'next/link';
 
 // Font that matches the clean, geometric style of the Appryte logo
 const inter = Inter({ subsets: ['latin'], weight: ['400', '500', '600', '700'] });
@@ -31,6 +33,7 @@ export default function Home() {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user } = useAuth();
   
   // After mounting, we can safely show the UI
   useEffect(() => {
@@ -252,6 +255,15 @@ export default function Home() {
               </button>
             ))}
             
+            {user && (
+              <Link 
+                href="/admin"
+                className="text-sm font-medium px-1 py-1 text-primary hover:opacity-80 transition-opacity"
+              >
+                Admin
+              </Link>
+            )}
+            
             {/* Theme toggle button */}
             {mounted && (
               <button 
@@ -314,6 +326,15 @@ export default function Home() {
                 )}
               </button>
             ))}
+            
+            {user && (
+              <Link 
+                href="/admin"
+                className="text-xs font-medium px-1 py-1 text-primary hover:opacity-80 transition-opacity"
+              >
+                Admin
+              </Link>
+            )}
             
             {/* Theme toggle button on mobile */}
             {mounted && (

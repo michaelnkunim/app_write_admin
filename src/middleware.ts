@@ -22,7 +22,7 @@ export async function middleware(request: NextRequest) {
   );
 
   // If there's no token and the path isn't public, redirect to login
-  if (!token && !isPublicPath) {
+  if (!token && !isPublicPath && path !== '/') {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
