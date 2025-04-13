@@ -552,10 +552,10 @@ export default function Home() {
                     </div>
                     
                     <div className="md:col-span-3">
-                    <h2 className="text-3xl text font-bold mb-6">Equiries</h2>
+                    <h2 className="text-3xl text font-bold mb-6">Eqnuiries</h2>
 
                       {formStatus.isSubmitted ? (
-                        <div className="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 p-4 rounded-md mb-4">
+                        <div className="bg-gray-700 dark:bg-fray-900/20 text-green-800 dark:text-green-200 p-4 rounded-md mb-4">
                           <p>Thank you for your message! We&apos;ll get back to you soon.</p>
                         </div>
                       ) : (
@@ -566,7 +566,7 @@ export default function Home() {
                               <input 
                                 id="name"
                                 type="text" 
-                                className={`w-full py-2 px-3 background dark:bg-black border ${formErrors.name ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'} focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md`}
+                                className={`w-full py-2 px-3 background text-light border ${formErrors.name ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'} focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md`}
                                 value={formData.name}
                                 onChange={handleInputChange}
                               />
@@ -577,7 +577,7 @@ export default function Home() {
                               <input 
                                 id="email"
                                 type="email" 
-                                className={`w-full py-2 px-3 background dark:bg-black border ${formErrors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'} focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md`}
+                                className={`w-full py-2 px-3 background text-light border ${formErrors.email ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'} focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md`}
                                 value={formData.email}
                                 onChange={handleInputChange}
                               />
@@ -592,7 +592,7 @@ export default function Home() {
                               <input 
                                 id="company"
                                 type="text" 
-                                className="w-full py-2 px-3 background dark:bg-black border border-gray-200 dark:border-gray-800 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md"
+                                className="w-full py-2 px-3 background text-light border border-gray-200 dark:border-gray-800 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md"
                                 value={formData.company}
                                 onChange={handleInputChange}
                               />
@@ -604,7 +604,7 @@ export default function Home() {
                               <input 
                                 id="country"
                                 type="text" 
-                                className="w-full py-2 px-3 background dark:bg-black border border-gray-200 dark:border-gray-800 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md"
+                                className="w-full py-2 px-3 background text-light border border-gray-200 dark:border-gray-800 focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md"
                                 value={formData.country}
                                 onChange={handleInputChange}
                               />
@@ -615,7 +615,7 @@ export default function Home() {
                             <textarea 
                               id="message"
                               rows={4} 
-                              className={`w-full py-2 px-3 background dark:bg-black border ${formErrors.message ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'} focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md`}
+                              className={`w-full py-2 px-3 text-light background dark:bg-black border ${formErrors.message ? 'border-red-500' : 'border-gray-200 dark:border-gray-800'} focus:outline-none focus:border-gray-500 dark:focus:border-gray-400 text-sm rounded-md`}
                               value={formData.message}
                               onChange={handleInputChange}
                             ></textarea>

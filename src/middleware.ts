@@ -28,7 +28,7 @@ export async function middleware(request: NextRequest) {
 
   //If there's a token and we're on a public path, redirect to dashboard
   if (token && publicPaths.includes(path)) {
-    return NextResponse.redirect(new URL('/admin/apps', request.url));
+    return NextResponse.redirect(new URL('/admin/app-list', request.url));
   }
 
   return NextResponse.next();

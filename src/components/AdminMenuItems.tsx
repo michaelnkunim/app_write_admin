@@ -73,18 +73,7 @@ export default function AdminMenuItems({ collapsed }: AdminMenuItemsProps) {
       name: 'Interface',
       path: '/admin/interface',
     },
-    // {
-    //   icon: 'Calendar1',
-    //   id: 'tracker',
-    //   name: 'Tracker',
-    //   path: '/admin/tracker',
-    // },
-    // {
-    //   icon: 'StickyNote',
-    //   id: 'notes',
-    //   name: 'Notes',
-    //   path: '/admin/notes',
-    // },
+
   ]
 
   
@@ -94,9 +83,9 @@ export default function AdminMenuItems({ collapsed }: AdminMenuItemsProps) {
 
           <Link
 
-            href='/admin/apps'
+            href='/admin/app-list'
             className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-              pathname === '/admin/apps' || pathname.startsWith('/admin/apps/')
+              pathname === '/admin/app-list' || pathname.startsWith('/admin/app-list/')
                 ? 'bg-primary text-primary-foreground' 
                 : 'hover:bg-accent'
             }`}
