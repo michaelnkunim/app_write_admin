@@ -257,7 +257,7 @@ export default function Home() {
             
             {user && (
               <Link 
-                href="/admin"
+                href="/admin/app-list"
                 className="text-sm font-medium px-1 py-1 text-primary hover:opacity-80 transition-opacity"
               >
                 Admin
@@ -329,7 +329,7 @@ export default function Home() {
             
             {user && (
               <Link 
-                href="/admin"
+                href="/admin/app-list"
                 className="text-xs font-medium px-1 py-1 text-primary hover:opacity-80 transition-opacity"
               >
                 Admin
